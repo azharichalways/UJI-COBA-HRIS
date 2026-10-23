@@ -1049,6 +1049,30 @@ function renderHomeTab() {
   `;
 }
 
+async function renderSalesHome(){
+  const c=document.getElementById('content'), month=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7);
+  c.innerHTML=`<div class="home-hero"><div class="eyebrow">Beranda Sales</div><div class="title">Halo, ${state.activeProfile.nama||'Sales'}</div><div class="desc">Presensi harian, laporan kunjungan, dan rekap aktivitas Anda.</div></div>
+  <div class="home-grid"><button class="home-tile" onclick="switchTab('absen',true)"><div class="icon">📝</div><div class="title">Presensi</div><div class="desc">Catat kehadiran dan aktivitas hari ini.</div></button><button class="home-tile" onclick="salesShowSelectedDate()"><div class="icon">📅</div><div class="title">Kehadiran Saya</div><div class="desc">Pilih tanggal untuk melihat laporan kunjungan.</div></button></div>
+  <div class="card" style="margin-top:12px"><div style="font-weight:800;margin-bottom:8px">Kehadiran Saya</div><label>Pilih tanggal laporan</label><input type="date" id="salesReportDate" value="${new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})}" onchange="salesShowSelectedDate()"><div id="salesSelectedReport" class="muted" style="margin-top:10px">Pilih tanggal untuk melihat laporan kunjungan.</div></div>
+  <div class="card" style="margin-top:12px"><div style="font-weight:800;margin-bottom:8px">Report (Rekap)</div><label>Bulan laporan</label><input type="month" id="salesReportMonth" value="${month}" onchange="salesLoadOwnReport()"><div id="salesOwnReport" class="muted" style="margin-top:10px">Memuat rekap…</div></div>`;
+  await salesLoadOwnReport(); await salesShowSelectedDate();
+}
+async function salesLoadOwnReport(){
+ const month=document.getElementById('salesReportMonth')?.value, slot=document.getElementById('salesOwnReport'); if(!month||!slot)return;
+ slot.innerHTML='Memuat rekap…'; const r=await gasCall('salesDailyMine',{month});
+ if(!r?.ok){slot.textContent=r?.error||'Rekap belum dapat dimuat. Pastikan koneksi server aktif.';return;}
+ const rows=r.records||[]; if(!rows.length){slot.innerHTML='<div class="empty">Belum ada laporan pada bulan ini.</div>';return;}
+ const keys=[['kunjungan','Kunjungan'],['register','Register'],['reaktif','Reaktif'],['outlet_deposit','Outlet Deposit'],['act_qris','Act QRIS']];
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ slot.innerHTML=rows.map(x=>`<div style="padding:9px 0;border-bottom:1px solid var(--border)"><strong>${esc(x.date)}</strong> · ${esc(x.status)}<div style="font-size:11px;color:var(--text-dim);margin-top:4px">${keys.map(k=>k[1]+': '+(Number(x[k[0]])||0)).join(' • ')}</div>${x.note?`<div style="font-size:11px;margin-top:4px">${esc(x.note)}</div>`:''}</div>`).join('');
+}
+async function salesShowSelectedDate(){
+ const date=document.getElementById('salesReportDate')?.value,slot=document.getElementById('salesSelectedReport');if(!date||!slot)return;
+ const month=date.slice(0,7);slot.innerHTML='Memuat laporan tanggal '+date+'…';const r=await gasCall('salesDailyMine',{month});
+ if(!r?.ok){slot.textContent=r?.error||'Laporan belum dapat dimuat.';return;}const x=(r.records||[]).find(a=>String(a.date).slice(0,10)===date);
+ if(!x){slot.innerHTML='<div class="empty">Belum ada laporan kunjungan pada tanggal ini.</div>';return;}
+ slot.innerHTML=`<div><strong>${x.date} · ${x.status}</strong><div style="margin-top:6px;font-size:12px">Kunjungan: ${Number(x.kunjungan)||0} · Register: ${Number(x.register)||0} · Reaktif: ${Number(x.reaktif)||0}<br>Outlet Deposit: ${Number(x.outlet_deposit)||0} · Act QRIS: ${Number(x.act_qris)||0}</div>${x.note?`<div style="margin-top:6px">Catatan: ${String(x.note).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</div>`:''}</div>`;
+}
 function renderProfilTab() {
   const c = document.getElementById('content');
   const u = state.activeProfile;
@@ -2571,6 +2595,7 @@ function renderKinerjaTab() {
   const c = document.getElementById('content');
   initUsers();
   const users = state.allUsers.filter(u => u.role !== 'hr').map(u => ({...u, perf:getUserPerformance(u.nik)}));
+  const salesUsers = state.allUsers.filter(u => String(u.role||'').toLowerCase()==='sales');
   const sorted = users.sort((a,b) => (b.xp || 0) - (a.xp || 0));
   const avgDisc = users.length ? Math.round(users.reduce((n,u)=>n+u.perf.discipline,0)/users.length) : 100;
   const totalGood = users.reduce((n,u)=>n+u.perf.good,0);
@@ -2602,6 +2627,14 @@ function renderKinerjaTab() {
       </div>
       <div class="perf-foot">🔥 Streak ${u.streak||0} hari • ${u.perf.activities} kegiatan tercatat</div>
     </div>`).join('') || '<div class="empty">Belum ada data pengguna.</div>';
+  if(salesUsers.length){list.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:14px"><strong>📊 Detail Performa Sales</strong><div class="muted" style="margin:5px 0 10px">Pilih bulan untuk melihat presensi dan aktivitas harian Sales.</div><label>Bulan laporan</label><input type="month" id="hrPerfSalesMonth" value="${new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)}"><button class="btn" onclick="hrLoadSalesPerformanceDetail()">Tampilkan Detail Performa Sales</button><div id="hrPerfSalesDetail" style="margin-top:10px"></div></div>`);}
+}
+
+async function hrLoadSalesPerformanceDetail(){
+ const month=document.getElementById('hrPerfSalesMonth')?.value,slot=document.getElementById('hrPerfSalesDetail');if(!month||!slot)return;slot.innerHTML='Memuat detail performa Sales…';
+ const r=await gasCall('salesDailyReport',{month});if(!r?.ok){slot.textContent=r?.error||'Gagal memuat detail performa.';return;}
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ slot.innerHTML=(r.detail||[]).map(u=>`<details style="border-top:1px solid var(--border);padding:8px 0"><summary><strong>${esc(u.nama)}</strong> · NIK ${esc(u.nik)}<div style="font-size:11px;margin-top:4px">Hadir ${u.Hadir} · Izin ${u.Izin} · Sakit ${u.Sakit} · Alpa ${u.Alpa}</div><div style="font-size:11px;color:var(--text-dim)">Kunjungan ${u.kunjungan} · Register ${u.register} · Reaktif ${u.reaktif} · Outlet Deposit ${u.outlet_deposit} · Act QRIS ${u.act_qris}</div></summary><div style="overflow:auto;margin-top:8px"><table style="width:100%;font-size:10px;border-collapse:collapse"><thead><tr><th>Tanggal</th><th>Status</th><th>Kunjungan</th><th>Register</th><th>Reaktif</th><th>Deposit</th><th>QRIS</th></tr></thead><tbody>${(u.daily||[]).map(d=>`<tr><td>${esc(d.date)}</td><td>${esc(d.status)}</td><td>${Number(d.kunjungan)||0}</td><td>${Number(d.register)||0}</td><td>${Number(d.reaktif)||0}</td><td>${Number(d.outlet_deposit)||0}</td><td>${Number(d.act_qris)||0}</td></tr>`).join('')}</tbody></table></div></details>`).join('')||'<div class="empty">Tidak ada akun Sales aktif.</div>';
 }
 
 function renderIdeHalBaikHRTab() {
@@ -2752,7 +2785,7 @@ function renderBroadcastBanner() {
 function renderBottomNav(){
   const nav=document.getElementById('bottomNav'), role=String(state.activeProfile.role||'').toLowerCase();
   if(role==='sales'){
-    nav.innerHTML=`<button class="navbtn ${state.currentTab==='absen'?'active':''}" onclick="switchTab('absen',true)"><span>📝</span><span>Presensi</span></button><button class="navbtn ${state.currentTab==='profil'?'active':''}" onclick="switchTab('profil',true)"><span>👤</span><span>Profil</span></button>`;
+    nav.innerHTML=`<button class="navbtn ${state.currentTab==='home'?'active':''}" onclick="switchTab('home',true)"><span>🏠</span><span>Beranda</span></button><button class="navbtn ${state.currentTab==='agenda'?'active':''}" onclick="switchTab('agenda',true)"><span>📅</span><span>Agenda</span></button><button class="navbtn ${state.currentTab==='profil'?'active':''}" onclick="switchTab('profil',true)"><span>👤</span><span>Profil</span></button>`;
     return;
   }
   const icon={
@@ -2782,7 +2815,7 @@ function v4KpiScore(nik){
 }
 
 function renderHomeTab(){
-  const role=state.activeProfile.role;if(role==='leader'){renderLeaderDashboard();return;}if(role==='hr'){renderHRDashboard();return;}
+  const role=String(state.activeProfile.role||'').toLowerCase();if(role==='sales'){renderSalesHome();return;}if(role==='leader'){renderLeaderDashboard();return;}if(role==='hr'){renderHRDashboard();return;}
   const c=document.getElementById('content'), nik=state.activeProfile.nik;
   const myLeaves=state.leaves.filter(l=>l.nik===nik&&l.status==='Pending').length, myIdeas=state.ideas.filter(i=>i.nik===nik&&i.status==='Pending').length, myGood=state.halBaik.filter(h=>h.nik===nik&&h.status==='Pending').length;
   const unread=getUnreadHRMessages(nik); const teamAgendas=state.agendas.filter(a=>a.scope==='team'&&a.teamLeaderNik===state.activeProfile.leaderNik&&!state.agendaUserStatus[a.id+'_'+nik]);
@@ -2813,6 +2846,7 @@ function isHRNonWorkingDay(date=new Date()){
 }
 
 function renderAbsenTab(){
+  if(String(state.activeProfile.role||'').toLowerCase()==='sales'){renderSalesAttendance();return;}
   const c=document.getElementById('content'), isHr=state.activeProfile.role==='hr', off=isHr&&isHRNonWorkingDay();
   if(isHr) state.selectedShift='pagi';
   c.classList.add('presensi-compact');
@@ -2823,6 +2857,20 @@ function renderAbsenTab(){
     ${isHr?`<h2 class="section-title">Shift HR</h2><div class="shift-picker"><div style="padding:10px 12px;font-size:12px;font-weight:800">Pagi • Senin–Jumat <span class="shift-current">${HR_WORK_SHIFT.start}–${HR_WORK_SHIFT.end}</span></div></div>`:`<h2 class="section-title">Shift Kerja</h2><div class="shift-picker" style="padding:12px;font-size:12px;font-weight:700">🗓️ Shift ditentukan otomatis dari jadwal karyawan terbaru.</div>`}
     <div id="cameraSlot"><div class="camera-wrap" id="camWrap"><video id="camVideo" autoplay playsinline muted></video><canvas id="camCanvas" style="display:none"></canvas><div class="cam-tools"><button type="button" class="cam-ico" id="btnCamSwitch" title="Ganti kamera depan/belakang" aria-label="Ganti kamera depan/belakang" onclick="toggleCameraFacing()"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button></div></div><button class="btn" id="btnCapture" onclick="capturePhotoAndAbsen()">📷 Ambil Foto & Presensi</button></div><div id="resultSlot"></div>`}`;
   updateLocationBadgeUI(); if(!off)startCamera();
+}
+
+async function renderSalesAttendance(){
+ const c=document.getElementById('content'),today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'});c.classList.remove('presensi-compact');
+ c.innerHTML=`<div class="home-hero"><div class="eyebrow">Presensi Sales</div><div class="title">Laporan Harian</div><div class="desc">Isi satu laporan per hari. Jika dikirim ulang pada tanggal yang sama, laporan lama diperbarui.</div></div><div class="card"><label>Tanggal</label><input type="date" id="salesSubmitDate" value="${today}" disabled><label>Status</label><select id="salesStatus" onchange="salesToggleActivityFields()"><option value="Hadir">Hadir</option><option value="Izin">Izin</option><option value="Sakit">Sakit</option></select><div id="salesActivityFields"><label>Kunjungan</label><input type="number" min="0" step="1" id="salesKunjungan" value="0"><label>Register</label><input type="number" min="0" step="1" id="salesRegister" value="0"><label>Reaktif</label><input type="number" min="0" step="1" id="salesReaktif" value="0"><label>Outlet Deposit</label><input type="number" min="0" step="1" id="salesDeposit" value="0"><label>Act QRIS</label><input type="number" min="0" step="1" id="salesQris" value="0"></div><label>Catatan</label><textarea id="salesNote" rows="2" placeholder="Catatan kunjungan (opsional)"></textarea><button class="btn" id="salesSubmitBtn" onclick="salesSubmitDaily()">Simpan Presensi & Laporan</button><div id="salesSubmitResult" style="margin-top:10px"></div></div>`;salesToggleActivityFields();
+}
+function salesToggleActivityFields(){const s=document.getElementById('salesStatus')?.value,el=document.getElementById('salesActivityFields');if(el)el.style.display=s==='Hadir'?'block':'none';}
+async function salesSubmitDaily(){
+ const btn=document.getElementById('salesSubmitBtn'),slot=document.getElementById('salesSubmitResult');if(!btn)return;const status=document.getElementById('salesStatus').value;
+ const num=id=>{const v=Number(document.getElementById(id)?.value||0);return Number.isFinite(v)&&v>=0?Math.floor(v):-1;};
+ const payload={status,kunjungan:num('salesKunjungan'),register:num('salesRegister'),reaktif:num('salesReaktif'),outlet_deposit:num('salesDeposit'),act_qris:num('salesQris'),note:document.getElementById('salesNote').value.trim()};
+ if(Object.values(payload).some(v=>typeof v==='number'&&v<0)){showToast('Jumlah aktivitas harus angka nol atau lebih.');return;}
+ btn.disabled=true;btn.textContent='Menyimpan…';const r=await gasCall('salesDailySubmit',payload);btn.disabled=false;btn.textContent='Simpan Presensi & Laporan';
+ if(!r?.ok){slot.textContent=r?.error||'Gagal menyimpan laporan.';return;}slot.innerHTML='<div class="approved-border" style="padding:10px;border-radius:8px">'+(r.message||'Laporan tersimpan.')+'</div>';showToast(r.message||'Laporan tersimpan.');
 }
 
 // Menentukan warna status presensi: hijau=tepat waktu, kuning=hadir briefing, merah=telat/pulang awal.
@@ -2876,13 +2924,21 @@ function visibleAgendasForUser(){
 }
 
 function renderAgendaTab(){
-  const c=document.getElementById('content'), role=state.activeProfile.role;
+  const c=document.getElementById('content'), role=String(state.activeProfile.role||'').toLowerCase();
+  if(role==='sales'){renderSalesAgenda();return;}
   let tabs='';
   if(role==='karyawan') tabs=`<button class="subnav-btn ${state.agendaSubTab==='agenda'?'active':''}" onclick="switchAgendaSubTab('agenda')">📅 Agenda Saya</button><button class="subnav-btn ${state.agendaSubTab==='kegiatan'?'active':''}" onclick="switchAgendaSubTab('kegiatan')">🌟 Kegiatan</button>`;
   else if(role==='leader') tabs=`<button class="subnav-btn ${state.agendaSubTab==='team'?'active':''}" onclick="switchAgendaSubTab('team')">👥 Agenda Tim</button><button class="subnav-btn ${state.agendaSubTab==='agenda'?'active':''}" onclick="switchAgendaSubTab('agenda')">🏢 Perusahaan</button><button class="subnav-btn ${state.agendaSubTab==='kegiatan'?'active':''}" onclick="switchAgendaSubTab('kegiatan')">🌟 Kegiatan</button>`;
   else tabs=`<button class="subnav-btn ${state.agendaSubTab==='agenda'?'active':''}" onclick="switchAgendaSubTab('agenda')">📅 Agenda</button><button class="subnav-btn ${state.agendaSubTab==='kegiatan'?'active':''}" onclick="switchAgendaSubTab('kegiatan')">🌟 Kegiatan</button><button class="subnav-btn ${state.agendaSubTab==='broadcast'?'active':''}" onclick="switchAgendaSubTab('broadcast')">📢 Broadcast</button>`;
   if(role==='leader'&&!['team','agenda','kegiatan'].includes(state.agendaSubTab))state.agendaSubTab='team'; if(role==='karyawan'&&!['agenda','kegiatan'].includes(state.agendaSubTab))state.agendaSubTab='agenda';
   c.innerHTML=`<div class="subnav-tabs">${tabs}</div><div id="agendaSubTabContent"></div>`;renderAgendaSubTabContent();
+}
+
+function renderSalesAgenda(){
+ const c=document.getElementById('content');const agendas=(state.agendas||[]).filter(a=>String(a.scope||'company')!=='team').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+ const announcements=(state.announcements||[]).filter(a=>{const exp=a.expiresAt||a.expires_at;return !exp||new Date(exp)>new Date();});
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ c.innerHTML=`<div class="home-hero"><div class="eyebrow">Informasi Perusahaan</div><div class="title">Agenda & Broadcast</div><div class="desc">Informasi resmi dari HR untuk seluruh Sales.</div></div><h2 class="section-title">📢 Broadcast HR</h2>${announcements.length?announcements.map(a=>`<div class="card"><strong>${esc(a.subject||'Pengumuman HR')}</strong><div style="font-size:11px;color:var(--text-dim);margin:4px 0">${esc(a.date||a.created_at||'')}</div><div style="white-space:pre-wrap">${esc(a.text)}</div></div>`).join(''):'<div class="empty">Belum ada broadcast aktif.</div>'}<h2 class="section-title">📅 Agenda Perusahaan</h2>${agendas.length?agendas.map(a=>`<div class="card"><strong>${esc(a.title)}</strong><div style="font-size:11px;color:var(--text-dim);margin-top:5px">${esc(a.date)} ${a.time?'• '+esc(a.time):''}</div>${a.location?`<div style="font-size:12px;margin-top:4px">📍 ${esc(a.location)}</div>`:''}</div>`).join(''):'<div class="empty">Belum ada agenda perusahaan.</div>'}`;
 }
 
 function v5XpOptions(selected=30){return Array.from({length:10},(_,i)=>(i+1)*10).map(v=>`<option value="${v}" ${v===selected?'selected':''}>+${v} XP</option>`).join('');}
