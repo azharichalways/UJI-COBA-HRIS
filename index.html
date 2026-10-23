@@ -2264,6 +2264,7 @@ function renderHRSubTabContent() {
         <select id="hrRole" onchange="toggleLeaderSelectOption()">
           <option value="leader">Leader (Wajib Dibuat Pertama)</option>
           <option value="karyawan">Anggota Tim</option>
+          <option value="sales">Sales</option>
           <option value="hr">HR Admin</option>
         </select>
 
@@ -2304,6 +2305,14 @@ function renderHRSubTabContent() {
       <h2 class="section-title">Daftar Akun Terdaftar (${state.allUsers.length})</h2>
       <div id="hrEditUserSlot"></div>
       <div class="card" id="hrUserList"></div>
+      <div class="card" style="margin-top:12px;">
+        <div style="font-weight:800;font-size:13.5px;margin-bottom:8px;">📊 Laporan Presensi Sales</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Rekap hari kerja Senin–Sabtu, tidak termasuk Minggu dan tanggal pada sheet Holidays, termasuk Hadir/Izin/Sakit/Alpa serta total aktivitas.</div>
+        <label>Bulan laporan</label>
+        <input type="month" id="hrSalesReportMonth" value="${new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)}">
+        <button class="btn" onclick="hrLoadSalesReport()">Tampilkan Laporan</button>
+        <div id="hrSalesReportResult" style="margin-top:10px;"></div>
+      </div>
     `;
 
     toggleLeaderSelectOption();
@@ -2396,9 +2405,13 @@ async function hrAddEmployee() {
 
   if (GAS_URL) {
     const res = await gasCall('saveUser', { ...newUser, actorNik: state.activeProfile.nik });
-    if (!res.ok) {
-      showToast('❌ Gagal menyimpan ke server: ' + (res.error || 'unknown error') + ' — akun tetap disimpan lokal di perangkat ini.');
+    if (!res || !res.ok) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Buat Akun Resmi'; }
+      showToast('❌ Gagal menyimpan ke server: ' + (res?.error || res?.message || 'respons tidak valid') + '. Akun tidak ditambahkan ke cache lokal.');
+      return;
     }
+    // Gunakan data yang dikembalikan server sebagai sumber utama akun yang baru dibuat.
+    if (res.user) Object.assign(newUser, res.user);
   }
 
   state.allUsers.push(newUser);
@@ -2407,6 +2420,28 @@ async function hrAddEmployee() {
   if (btn) { btn.disabled = false; btn.textContent = 'Buat Akun Resmi'; }
   showToast('🎉 Akun ' + role.toUpperCase() + ' untuk ' + nama + ' berhasil dibuat!' + (GAS_URL ? ' Tersimpan ke Google Sheets — bisa login dari perangkat manapun.' : ' (Catatan: GAS_URL belum diisi, akun ini baru tersimpan lokal di perangkat ini saja.)'));
   renderHRDashboard();
+}
+
+async function hrLoadSalesReport() {
+  const month=document.getElementById('hrSalesReportMonth')?.value;
+  const slot=document.getElementById('hrSalesReportResult');
+  if(!month||!slot){showToast('Pilih bulan laporan terlebih dahulu.');return;}
+  slot.innerHTML='<div class="muted">Memuat laporan Sales…</div>';
+  const res=await gasCall('salesDailyReport',{month});
+  if(!res?.ok){slot.innerHTML='';showToast('❌ Laporan gagal dimuat: '+(res?.error||res?.message||'Kesalahan server'));return;}
+  const rows=res.detail||[];
+  if(!rows.length){slot.innerHTML='<div class="empty">Belum ada akun Sales aktif untuk bulan ini.</div>';return;}
+  const cols=[['nik','NIK'],['nama','Nama'],['Hadir','Hadir'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa'],['kunjungan','Kunjungan'],['register','Register'],['reaktif','Reaktif'],['outlet_deposit','Outlet Deposit'],['act_qris','Act QRIS']];
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  slot.innerHTML=`<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>${cols.map(c=>`<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">${c[1]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td style="padding:6px;border-bottom:1px solid var(--border)">${esc(r[c[0]])}</td>`).join('')}</tr>`).join('')}</tbody></table></div><button class="btn secondary" style="margin-top:8px" onclick="hrDownloadSalesReport('${esc(month)}')">⬇️ Unduh Laporan untuk Excel</button>`;
+  window.__hrSalesReportData={month,rows};
+}
+function hrDownloadSalesReport(month){
+  const data=window.__hrSalesReportData;
+  if(!data||data.month!==month){showToast('Tampilkan laporan bulan tersebut terlebih dahulu.');return;}
+  const cols=[['nik','NIK'],['nama','Nama'],['Hadir','Total Hadir'],['Izin','Total Izin'],['Sakit','Total Sakit'],['Alpa','Total Alpa'],['kunjungan','Total Kunjungan'],['register','Total Register'],['reaktif','Total Reaktif'],['outlet_deposit','Total Outlet Deposit'],['act_qris','Total Act QRIS']];
+  const csv=[cols.map(c=>'"'+c[1].replace(/"/g,'""')+'"').join(';'),...data.rows.map(r=>cols.map(c=>'"'+String(r[c[0]]??'').replace(/"/g,'""')+'"').join(';'))].join('\r\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Laporan_Sales_'+month+'.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 
 function renderHRUserList() {
@@ -2454,6 +2489,7 @@ function hrEditUser(nik) {
       <select id="editRole" onchange="toggleEditLeaderSelect()">
         <option value="karyawan" ${u.role==='karyawan'?'selected':''}>Anggota Tim</option>
         <option value="leader" ${u.role==='leader'?'selected':''}>Leader</option>
+        <option value="sales" ${u.role==='sales'?'selected':''}>Sales</option>
         <option value="hr" ${u.role==='hr'?'selected':''}>HR Admin</option>
       </select>
       <div id="editLeaderGroup" style="margin-bottom:10px; display:${u.role==='karyawan'?'block':'none'};">
@@ -2714,7 +2750,11 @@ function renderBroadcastBanner() {
 }
 
 function renderBottomNav(){
-  const nav=document.getElementById('bottomNav'), role=state.activeProfile.role;
+  const nav=document.getElementById('bottomNav'), role=String(state.activeProfile.role||'').toLowerCase();
+  if(role==='sales'){
+    nav.innerHTML=`<button class="navbtn ${state.currentTab==='absen'?'active':''}" onclick="switchTab('absen',true)"><span>📝</span><span>Presensi</span></button><button class="navbtn ${state.currentTab==='profil'?'active':''}" onclick="switchTab('profil',true)"><span>👤</span><span>Profil</span></button>`;
+    return;
+  }
   const icon={
     home:`<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>`,
     absen:`<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>`,
