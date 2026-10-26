@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Absensi Geoface V10 Stable — V4 — PT Putra Jaya Telesindo</title>
+<title>Absensi Geoface — Sales Navigation Fix — PT Putra Jaya Telesindo</title>
+<meta name="geoface-build" content="sales-nav-fix-2026-10-26">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -493,7 +494,7 @@
 <script>
 // Isi manual dengan URL Web App hasil Deploy Google Apps Script (Code.gs), format:
 // https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzxOknNcjRkJqjY_q7EWlD3kspofPuEHCt4wuD12Ib9UT8Jmq6DDfy9RRTkMpPCbFD8tA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyykTZdlvKczY326jADQ7Rh02MMCueqcyNxX1wVatxA0aBKqKL1YgWDVEARt_fpL9HjdA/exec';
 
 // Panggil backend Google Apps Script (Code.gs). action = nama action di doPost (mis. 'login', 'saveUser').
 // Mengembalikan {ok:true,...} dari server, atau {ok:false,error:'...'} kalau GAS_URL belum diisi / gagal koneksi.
@@ -933,7 +934,14 @@ function renderBroadcastBanner() {
 
 function renderBottomNav() {
   const nav = document.getElementById('bottomNav');
-  const role = state.activeProfile.role;
+  const role = String(state.activeProfile.role || '').toLowerCase();
+  if (role === 'sales') {
+    nav.innerHTML = `
+      <button class="navbtn ${state.currentTab === 'home' ? 'active' : ''}" onclick="switchTab('home', true)"><span>🏠</span><span>Beranda</span></button>
+      <button class="navbtn ${state.currentTab === 'agenda' ? 'active' : ''}" onclick="switchTab('agenda', true)"><span>📅</span><span>Agenda</span></button>
+      <button class="navbtn ${state.currentTab === 'profil' ? 'active' : ''}" onclick="switchTab('profil', true)"><span>👤</span><span>Profil</span></button>`;
+    return;
+  }
 
   const icon = {
     home: `<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>`,
