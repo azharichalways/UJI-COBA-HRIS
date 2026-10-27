@@ -4401,6 +4401,72 @@ renderHRMessagesPage=async function(){
 })();
 </script>
 
+
+<style id="sales-final-polish-v3">
+/* Samakan skala teks dengan halaman Kehadiran Saya; padatkan kalender Sales. */
+#salesModuleData,#salesModuleData *{font-size:12px!important;line-height:1.4}
+#salesModuleData h3{font-size:13px!important;margin:0 0 7px!important}
+#salesModuleData label{font-size:11px!important;margin:4px 0 3px!important}
+#salesModuleData .card{padding:10px!important;margin-bottom:8px!important}
+#salesCalendarPanel{padding:10px!important}
+#salesCalendarPanel button{min-height:32px!important;padding:3px!important;border-radius:6px!important}
+#salesCalendarPanel>div[style*="grid-template-columns"]{gap:3px!important}
+#salesDetailPanel{margin-top:8px!important}
+#content button[data-sales-home-hidden="1"]{display:none!important}
+</style>
+<script id="sales-final-polish-v3">
+(function(){
+  const norm=t=>String(t||'').replace(/\s+/g,' ').trim().toLowerCase();
+  function cleanSalesHome(){
+    if(String(state.activeProfile?.role||'').toLowerCase()!=='sales')return;
+    const c=document.getElementById('content');if(!c)return;
+    // Beranda Sales hanya Presensi, Riwayat Aktivitas, dan Agenda. Hilangkan elemen secara stabil,
+    // termasuk ketika render lama/asinkron menambahkan tile kembali.
+    const home=c.querySelector('.home-grid');if(!home)return;
+    home.querySelectorAll('button,.home-tile,[role="button"]').forEach(el=>{
+      const txt=norm(el.innerText||el.textContent);
+      if(txt.includes('unduh laporan')||txt.includes('pesan hr')){
+        el.dataset.salesHomeHidden='1';el.remove();
+      }
+    });
+  }
+  const oldRenderBottom=renderBottomNav;
+  renderBottomNav=function(){oldRenderBottom();cleanSalesHome();};
+  const oldRenderSales=window.renderSalesModule;
+  window.renderSalesModule=async function(){
+    const r=await oldRenderSales.apply(this,arguments);
+    cleanSalesHome();
+    const role=String(state.activeProfile?.role||'').toLowerCase();
+    if(role==='sales'){
+      // Hapus tombol kembali dan rapikan judul halaman fitur.
+      const c=document.getElementById('content');
+      c?.querySelectorAll('button').forEach(b=>{if(norm(b.textContent).includes('kembali ke beranda'))b.remove();});
+      const hero=c?.querySelector('.home-hero');if(hero){hero.style.marginBottom='8px';hero.style.padding='10px 12px';const title=hero.querySelector('.title');if(title)title.style.fontSize='13px';const desc=hero.querySelector('.desc');if(desc)desc.style.fontSize='11px';}
+    }
+    return r;
+  };
+  // Cache singkat hasil baca server agar membuka Riwayat Aktivitas / Agenda tidak selalu menunggu RPC.
+  const prevGasCall=gasCall;const cache=new Map();const TTL=30000;
+  gasCall=async function(action,payload={}){
+    const reads=['getSalesModuleData','getSalesCompanyAgendas'];
+    if(reads.includes(action)){
+      const key=action+'|'+JSON.stringify(payload||{}),now=Date.now(),hit=cache.get(key);
+      if(hit&&now-hit.at<TTL)return hit.value;
+      const value=await prevGasCall(action,payload);
+      if(value?.ok!==false)cache.set(key,{at:Date.now(),value});
+      return value;
+    }
+    const value=await prevGasCall(action,payload);
+    if(value?.ok!==false&&/^(saveSalesAttendance|saveSalesDailyReport|updateSalesReport|updateSalesAttendance|reviewAttendanceCorrection|addAttendance)$/.test(action))cache.clear();
+    return value;
+  };
+  // Render beranda sekali lagi setelah DOM stabil agar tile tidak sempat menetap setelah render async.
+  const obs=new MutationObserver(()=>cleanSalesHome());
+  const start=()=>{const c=document.getElementById('content');if(c)obs.observe(c,{childList:true,subtree:true});cleanSalesHome();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+
 </body>
 </html>
 <script id="v105ReportFilesFeedbackAndGlobalDates">
