@@ -493,7 +493,7 @@
 <script>
 // Isi manual dengan URL Web App hasil Deploy Google Apps Script (Code.gs), format:
 // https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyykTZdlvKczY326jADQ7Rh02MMCueqcyNxX1wVatxA0aBKqKL1YgWDVEARt_fpL9HjdA/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxlhFE5xMkd14RPC9M6qxNxXyHtR9PS7WwGoyXtrIi-_R1ii_iQYswm4O_RMo0PJUbvuw/exec';
 
 // Panggil backend Google Apps Script (Code.gs). action = nama action di doPost (mis. 'login', 'saveUser').
 // Mengembalikan {ok:true,...} dari server, atau {ok:false,error:'...'} kalau GAS_URL belum diisi / gagal koneksi.
@@ -769,21 +769,13 @@ function initLocationWatcher() {
 }
 
 function updateLocationBadgeUI() {
+  // Jadwal shift karyawan ditentukan backend, sehingga frontend tidak boleh
+  // menampilkan peringatan geofence berdasarkan state.selectedShift yang belum otoritatif.
+  // Backend tetap menegakkan radius untuk shift kantor dan mengecualikan shift malam.
   const badge = document.getElementById('locationBadge');
   if (!badge) return;
-  if (state.selectedShift === 'malam') {
-    badge.className = 'location-badge valid';
-    badge.innerHTML = `<span>🌙</span> <strong>Shift Malam:</strong> Bebas Lokasi Kantor`;
-  } else if (state.distanceToOffice === null) {
-    badge.className = 'location-badge invalid';
-    badge.innerHTML = `<span>📍</span> GPS Mencari Lokasi... (Harap Izinkan GPS)`;
-  } else if (state.distanceToOffice <= (state.officeConfig?.maxDistance || 300)) {
-    badge.className = 'location-badge valid';
-    badge.innerHTML = `<span>🟢</span> Lokasi Valid: <strong>${state.distanceToOffice}m</strong> dari kantor`;
-  } else {
-    badge.className = 'location-badge invalid';
-    badge.innerHTML = `<span>⛔</span> Di Luar Jangkauan: <strong>${state.distanceToOffice}m</strong> (Maks 300m)`;
-  }
+  badge.className = 'location-badge valid';
+  badge.innerHTML = `<span>📍</span> <strong>Validasi lokasi mengikuti jadwal shift</strong>`;
 }
 
 function initUsers() {
@@ -2265,6 +2257,7 @@ function renderHRSubTabContent() {
           <option value="leader">Leader (Wajib Dibuat Pertama)</option>
           <option value="karyawan">Anggota Tim</option>
           <option value="hr">HR Admin</option>
+          <option value="sales">Sales</option>
         </select>
 
         <div id="leaderSelectionGroup" style="margin-bottom:10px; display:none;">
@@ -2455,6 +2448,7 @@ function hrEditUser(nik) {
         <option value="karyawan" ${u.role==='karyawan'?'selected':''}>Anggota Tim</option>
         <option value="leader" ${u.role==='leader'?'selected':''}>Leader</option>
         <option value="hr" ${u.role==='hr'?'selected':''}>HR Admin</option>
+        <option value="sales" ${u.role==='sales'?'selected':''}>Sales</option>
       </select>
       <div id="editLeaderGroup" style="margin-bottom:10px; display:${u.role==='karyawan'?'block':'none'};">
         <label style="color:var(--brand-primary); font-weight:700;">📌 Leader Penanggung Jawab</label>
@@ -3870,7 +3864,7 @@ capturePhotoAndAbsen = function(){
     pending={id:'ATT-'+Date.now()+'-'+String(state.activeProfile.nik)+'-'+String(state.selectedType),type:state.selectedType,createdAt:Date.now()};
   }
   sessionStorage.setItem(pendingKey,JSON.stringify(pending));
-  const payload={id:pending.id,type:state.selectedType,lat:state.selectedShift==='malam'?'':state.coords.lat,lng:state.selectedShift==='malam'?'':state.coords.lng,accuracy:state.selectedShift==='malam'?0:(state.coords.accuracy||0),photoBase64:photo};
+  const payload={id:pending.id,type:state.selectedType,lat:state.coords.lat,lng:state.coords.lng,accuracy:(state.coords.accuracy||0),photoBase64:photo};
   gasCall('addAttendance',payload).then(res=>{
     if(!res||!res.ok){showToast('⛔ '+(res?.message||res?.error||'Status presensi belum dapat dipastikan. Periksa riwayat sebelum mencoba lagi.'));if(slot)slot.innerHTML=`<div class="card rejected-border" style="text-align:center"><div style="font-weight:800">Presensi belum terkonfirmasi</div><div style="font-size:12px;margin:6px 0">Jika koneksi terputus, periksa riwayat presensi sebelum mencoba lagi.</div><img src="${photo}" alt="Foto yang diambil" style="width:100px;height:130px;object-fit:cover;border-radius:10px;margin:8px auto"><button class="btn" onclick="renderAbsenTab()">Periksa / Coba Lagi</button></div>`;return;}
     sessionStorage.removeItem(pendingKey);
@@ -4262,6 +4256,62 @@ renderHRMessagesPage=async function(){
   return _renderHRMessagesPage_v14();
 };
 </script>
+
+<script id="sales-module-v1">
+// Modul Sales: UI tambahan terpisah, tidak mengganti halaman/fitur lama.
+(function(){
+  const salesEsc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const todayWib=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const monthWib=()=>todayWib().slice(0,7);
+  let salesMonth=monthWib(), salesSelectedNik='';
+  const oldRenderBottomNav=renderBottomNav;
+  renderBottomNav=function(){
+    oldRenderBottomNav();
+    const nav=document.getElementById('bottomNav'),role=String(state.activeProfile?.role||'').toLowerCase();if(!nav)return;
+    if(role==='sales'){
+      nav.innerHTML=`<button class="navbtn ${state.currentTab==='sales_module'?'active':''}" onclick="switchTab('sales_module',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 17h7"/></svg><span>Sales</span></button><button class="navbtn ${state.currentTab==='profil'?'active':''}" onclick="switchTab('profil',true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Profil</span></button>`;
+    }else if(role==='hr'&&!nav.querySelector('[data-sales-module-nav]')){
+      const b=document.createElement('button');b.className='navbtn '+(state.currentTab==='sales_module'?'active':'');b.dataset.salesModuleNav='1';b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 17h7"/></svg><span>Sales</span>';b.onclick=()=>switchTab('sales_module',true);nav.appendChild(b);
+    }
+  };
+  const oldSwitchTab=switchTab;
+  switchTab=function(tab,pushState=true){
+    const role=String(state.activeProfile?.role||'').toLowerCase();
+    if(tab==='sales_module'){state.currentTab=tab;if(pushState)history.pushState({tab},'','#'+tab);stopCamera();renderBottomNav();renderSalesModule();return;}
+    if(role==='sales'&&tab!=='profil'){state.currentTab='sales_module';if(pushState)history.pushState({tab:'sales_module'},'','#sales_module');stopCamera();renderBottomNav();renderSalesModule();return;}
+    return oldSwitchTab(tab,pushState);
+  };
+  window.renderSalesModule=async function(){
+    const c=document.getElementById('content');if(!c||!state.activeProfile)return;
+    const role=String(state.activeProfile.role||'').toLowerCase(),isHr=role==='hr';if(!isHr&&role!=='sales'){c.innerHTML='<div class="card">Akses ditolak.</div>';return;}
+    if(isHr&&!salesSelectedNik){const list=(state.allUsers||[]).filter(u=>String(u.role).toLowerCase()==='sales');salesSelectedNik=list[0]?.nik||'';}
+    const nik=isHr?salesSelectedNik:String(state.activeProfile.nik);
+    c.innerHTML=`<div class="home-hero"><div class="eyebrow">Absensi Geoface</div><div class="title">Modul Sales</div><div class="desc">Presensi dan laporan aktivitas harian Sales.</div></div>
+      <div class="card" style="margin-bottom:12px"><label>Periode laporan</label><input id="salesMonth" type="month" value="${salesEsc(salesMonth)}" onchange="salesMonthChanged(this.value)">${isHr?`<label>Pilih Sales</label><select id="salesUserSelect" onchange="salesUserChanged(this.value)">${(state.allUsers||[]).filter(u=>String(u.role).toLowerCase()==='sales').map(u=>`<option value="${salesEsc(u.nik)}" ${String(u.nik)===String(nik)?'selected':''}>${salesEsc(u.nama)} — ${salesEsc(u.nik)}</option>`).join('')}</select>`:''}<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px"><button class="btn secondary" style="flex:1" onclick="salesDownloadPdf('attendance')">PDF Kehadiran</button><button class="btn secondary" style="flex:1" onclick="salesDownloadPdf('activity')">PDF Aktivitas</button></div></div>
+      <div id="salesModuleData"><div class="card">Memuat data…</div></div>`;
+    const res=await gasCall('getSalesModuleData',{month:salesMonth,nik});if(!res?.ok){document.getElementById('salesModuleData').innerHTML=`<div class="card">Gagal memuat data: ${salesEsc(res?.message||res?.error||'Kesalahan koneksi')}</div>`;return;}
+    renderSalesModuleData(res,isHr);
+  };
+  window.salesMonthChanged=v=>{if(/^\d{4}-\d{2}$/.test(v))salesMonth=v;renderSalesModule();};
+  window.salesUserChanged=v=>{salesSelectedNik=v;renderSalesModule();};
+  function renderSalesModuleData(res,isHr){
+    const el=document.getElementById('salesModuleData');if(!el)return;const att=res.attendance||[],reports=res.reports||[],today=res.serverDate||todayWib(),already=!!res.todayAttendance,reportToday=!!res.todayReport;
+    const attendanceForm=isHr?'':`<div class="card" style="margin-bottom:12px"><h3 style="margin-top:0">Presensi Hari Ini</h3>${already?`<div class="notice-strip">Presensi hari ini sudah tercatat: <strong>${salesEsc(res.todayAttendance.status)}</strong> • ${salesEsc(res.todayAttendance.time||'')}</div>`:`<label>Status</label><select id="salesAttStatus" onchange="salesToggleEvidence()"><option value="Hadir">Hadir</option><option value="Sakit">Sakit</option><option value="Izin">Izin</option></select><label>Keterangan (wajib untuk Sakit/Izin)</label><textarea id="salesAttReason" rows="2" placeholder="Keterangan sakit atau izin"></textarea><div id="salesDoctorHint" style="font-size:12px;color:#64748b;margin:5px 0">Untuk Sakit, lampirkan surat dokter sebagai bukti (foto opsional).</div><label>Foto (wajib untuk Hadir; opsional untuk Sakit/Izin)</label><input id="salesAttPhoto" type="file" accept="image/*" capture="environment"><button class="btn" style="margin-top:10px" onclick="salesSubmitAttendance()">Simpan Presensi</button>`}</div>`;
+    const reportForm=isHr?'':`<div class="card" style="margin-bottom:12px"><h3 style="margin-top:0">Laporan Aktivitas Hari Ini</h3><p class="muted" style="font-size:12px">Isi realisasi angka untuk setiap indikator. Laporan dapat diedit pada hari yang sama.</p><div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:9px">${[['kunjungan','Kunjungan'],['register','Register'],['reaktif','Reaktif'],['outlet_deposit','Outlet Deposit'],['act_qris','Act QRIS']].map(([id,label])=>`<div><label>${label}</label><input id="sales_${id}" type="number" min="0" step="1" value="${salesEsc(res.todayReport?.[id]??'')}" placeholder="Realisasi"></div>`).join('')}</div><button class="btn" style="margin-top:10px" onclick="salesSaveReport()">${reportToday?'Perbarui Laporan':'Simpan Laporan'}</button></div>`;
+    const attendanceTable=att.length?`<div class="card" style="overflow:auto"><h3>Riwayat Kehadiran</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th>Tanggal</th><th>Status</th><th>Waktu</th><th>Keterangan/Bukti</th>${isHr?'<th>Koreksi</th>':''}</tr></thead><tbody>${att.map(a=>`<tr><td>${salesEsc(a.date)}</td><td>${salesEsc(a.status)}</td><td>${salesEsc(a.time||'-')}</td><td>${salesEsc(a.reason||'-')} ${a.photo_url?`<br><a target="_blank" rel="noopener" href="${salesEsc(a.photo_url)}">Lihat foto</a>`:''}</td>${isHr?`<td><button class="btn secondary" onclick="salesHrEditAttendance('${salesEsc(a.id)}','${salesEsc(a.status)}','${salesEsc(a.reason||'')}')">Edit</button></td>`:''}</tr>`).join('')}</tbody></table></div>`:'<div class="card">Belum ada riwayat kehadiran pada periode ini.</div>';
+    const reportTable=reports.length?`<div class="card" style="overflow:auto"><h3>Riwayat Aktivitas</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th>Tanggal</th><th>Kunjungan</th><th>Register</th><th>Reaktif</th><th>Outlet Deposit</th><th>Act QRIS</th>${isHr?'<th>Koreksi</th>':''}</tr></thead><tbody>${reports.map(r=>`<tr><td>${salesEsc(r.date)}</td><td>${salesEsc(r.kunjungan)}</td><td>${salesEsc(r.register)}</td><td>${salesEsc(r.reaktif)}</td><td>${salesEsc(r.outlet_deposit)}</td><td>${salesEsc(r.act_qris)}</td>${isHr?`<td><button class="btn secondary" onclick="salesHrEditReport('${salesEsc(r.id)}',${JSON.stringify([r.kunjungan,r.register,r.reaktif,r.outlet_deposit,r.act_qris])})">Edit</button></td>`:''}</tr>`).join('')}</tbody></table></div>`:'<div class="card">Belum ada laporan aktivitas pada periode ini.</div>';
+    el.innerHTML=attendanceForm+reportForm+attendanceTable+reportTable;
+  }
+  window.salesToggleEvidence=function(){const s=document.getElementById('salesAttStatus')?.value,h=document.getElementById('salesDoctorHint');if(h)h.textContent=s==='Sakit'?'Lampirkan surat dokter sebagai bukti (foto opsional).':s==='Izin'?'Keterangan izin wajib diisi. Foto bukti opsional.':'Hadir wajib disertai foto.';};
+  function readImage(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
+  window.salesSubmitAttendance=async function(){const status=document.getElementById('salesAttStatus')?.value,reason=document.getElementById('salesAttReason')?.value.trim()||'',file=document.getElementById('salesAttPhoto')?.files?.[0];if(['Sakit','Izin'].includes(status)&&!reason){showToast('Keterangan wajib diisi untuk Sakit/Izin.');return;}if(status==='Hadir'&&!file){showToast('Foto wajib untuk presensi Hadir.');return;}if(file&&file.size>1000000){showToast('Foto terlalu besar. Gunakan foto maksimal 1 MB.');return;}const photoBase64=await readImage(file);const res=await gasCall('saveSalesAttendance',{status,reason,photoBase64});if(!res?.ok){showToast('Presensi gagal: '+(res?.message||res?.error||'coba lagi'));return;}showToast(res.message||'Presensi tersimpan.');renderSalesModule();};
+  window.salesSaveReport=async function(){const p={};for(const k of ['kunjungan','register','reaktif','outlet_deposit','act_qris']){const v=document.getElementById('sales_'+k)?.value;if(v===''||v==null||!/^\d+$/.test(v)){showToast('Isi angka realisasi yang valid untuk semua indikator.');return;}p[k]=Number(v);}const res=await gasCall('saveSalesDailyReport',p);if(!res?.ok){showToast('Laporan gagal disimpan: '+(res?.message||res?.error||'coba lagi'));return;}showToast(res.message||'Laporan tersimpan.');renderSalesModule();};
+  window.salesDownloadPdf=async function(kind){const role=String(state.activeProfile?.role||'').toLowerCase(),action=role==='hr'?(kind==='attendance'?'generateSalesAttendancePdf':'generateSalesActivityPdf'):(kind==='attendance'?'generateMySalesAttendancePdf':'generateMySalesActivityPdf');const p={month:salesMonth};if(role==='hr')p.nik=salesSelectedNik;const res=await gasCall(action,p);if(!res?.ok){showToast('PDF gagal dibuat: '+(res?.message||res?.error||'coba lagi'));return;}window.open(res.url,'_blank','noopener');showToast('PDF dibuat: '+res.fileName);};
+  window.salesHrEditReport=async function(id,vals){const labels=['Kunjungan','Register','Reaktif','Outlet Deposit','Act QRIS'],keys=['kunjungan','register','reaktif','outlet_deposit','act_qris'],p={id};for(let i=0;i<keys.length;i++){const v=prompt('Realisasi '+labels[i]+':',vals[i]);if(v===null)return;if(!/^\d+$/.test(v)){showToast('Nilai harus berupa angka bulat.');return;}p[keys[i]]=Number(v);}const res=await gasCall('updateSalesReport',p);if(!res?.ok){showToast('Koreksi gagal: '+(res?.message||res?.error||''));return;}showToast('Laporan dikoreksi HR.');renderSalesModule();};
+  window.salesHrEditAttendance=async function(id,status,reason){const next=prompt('Status (Hadir/Sakit/Izin/Alpha):',status);if(next===null)return;if(!['Hadir','Sakit','Izin','Alpha'].includes(next)){showToast('Status tidak valid.');return;}let why=prompt('Keterangan (wajib untuk Sakit/Izin):',reason)||'';if(['Sakit','Izin'].includes(next)&&!why.trim()){showToast('Keterangan wajib.');return;}const res=await gasCall('updateSalesAttendance',{id,status:next,reason:why});if(!res?.ok){showToast('Koreksi gagal: '+(res?.message||res?.error||''));return;}showToast('Presensi dikoreksi HR.');renderSalesModule();};
+})();
+</script>
+
 </body>
 </html>
 <script id="v105ReportFilesFeedbackAndGlobalDates">
