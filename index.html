@@ -493,7 +493,7 @@
 <script>
 // Isi manual dengan URL Web App hasil Deploy Google Apps Script (Code.gs), format:
 // https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwX2kCyuLLMla2Edapbn6KlMwrbjcgnnLi3S_yGnL0pZtEwY3X75NuWZf2PTAAJR2CLkw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw3zBHTsFZj4CaxPZ6YD9mEsPVjURXg5LWqM6wfY95xLAsjb7vt-9Idzd2HgKiuV9lC3w/exec';
 
 // Panggil backend Google Apps Script (Code.gs). action = nama action di doPost (mis. 'login', 'saveUser').
 // Mengembalikan {ok:true,...} dari server, atau {ok:false,error:'...'} kalau GAS_URL belum diisi / gagal koneksi.
@@ -4463,6 +4463,70 @@ renderHRMessagesPage=async function(){
   // Render beranda sekali lagi setelah DOM stabil agar tile tidak sempat menetap setelah render async.
   const obs=new MutationObserver(()=>cleanSalesHome());
   const start=()=>{const c=document.getElementById('content');if(c)obs.observe(c,{childList:true,subtree:true});cleanSalesHome();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+
+
+<style id="sales-report-unified-polish-v3">
+/* HR home: shortcut Agenda & Broadcast disembunyikan; pengingat agenda tidak memenuhi beranda. */
+#content .home-grid .home-tile[data-hide-agenda-broadcast="1"]{display:none!important}
+/* Laporan Sales: ringkas, berwarna, seragam untuk HR dan Sales. */
+#salesModuleData{font-size:12px!important;line-height:1.35}
+#salesModuleData .card{border:1px solid #dbeafe;border-radius:13px;padding:10px!important;box-shadow:0 3px 12px rgba(30,64,175,.06);}
+#salesModuleData h3{font-size:13px!important;margin:2px 0 8px!important;color:#1e3a8a}
+#salesModuleData label{font-size:10.5px!important;font-weight:700;color:#475569;margin-top:5px}
+#salesModuleData input,#salesModuleData select,#salesModuleData textarea{font-size:12px!important;padding:7px 8px!important;border-radius:8px!important;min-height:32px}
+#salesModuleData .notice-strip{border-radius:9px!important;border:1px solid #bfdbfe;background:linear-gradient(135deg,#eff6ff,#f0fdfa)!important;padding:8px!important;font-size:11px!important}
+#salesCalendarPanel{border-color:#c7d2fe!important;background:linear-gradient(160deg,#fff,#f5f3ff)!important}
+#salesCalendarPanel button{min-height:36px!important;border-radius:9px!important;font-size:11px!important;box-shadow:0 1px 2px #0f172a0b;transition:transform .12s,box-shadow .12s}
+#salesCalendarPanel button:hover{transform:translateY(-1px);box-shadow:0 3px 9px #64748b24}
+#salesDetailPanel{background:linear-gradient(135deg,#fff,#f8fafc)!important;border-top:3px solid #6366f1!important}
+#salesModuleData button.btn{font-size:11px!important;padding:7px 9px!important;border-radius:9px!important}
+#salesModuleData .sales-icon-action{min-width:35px!important;width:35px;height:32px;padding:4px!important;display:inline-flex;align-items:center;justify-content:center;font-size:16px!important}
+#salesModuleData .sales-month-row{display:flex;align-items:center;gap:8px}
+#salesModuleData .sales-month-row label{margin:0}
+</style>
+<script id="sales-report-unified-polish-v3">
+(function(){
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  function cleanHrHome(){
+    const role=String(window.state?.activeProfile?.role||'').toLowerCase(); if(role!=='hr')return;
+    const c=document.getElementById('content');if(!c)return;
+    c.querySelectorAll('.home-grid .home-tile').forEach(tile=>{
+      const t=norm(tile.innerText||tile.textContent);
+      if(t.includes('agenda & broadcast')||t.includes('agenda dan broadcast'))tile.remove();
+    });
+    c.querySelectorAll('.hr-agenda-notice').forEach(n=>n.remove());
+  }
+  const oldHR=window.renderHRDashboard;
+  if(typeof oldHR==='function')window.renderHRDashboard=function(){const r=oldHR.apply(this,arguments);cleanHrHome();return r;};
+  // Keep the old Agenda feature available elsewhere, but do not load its data on the Sales Report screen.
+  const oldGas=window.gasCall; const agendaFast={ok:true,agendas:[]};
+  if(typeof oldGas==='function')window.gasCall=async function(action,payload={}){
+    if(action==='getSalesCompanyAgendas')return agendaFast;
+    return oldGas.apply(this,arguments);
+  };
+  // Icon-only PDF actions conserve space while preserving accessible labels/tooltips.
+  function polishSales(){
+    cleanHrHome();
+    const c=document.getElementById('content');if(!c)return;
+    const role=String(window.state?.activeProfile?.role||'').toLowerCase();
+    if(!['sales','hr'].includes(role))return;
+    c.querySelectorAll('#salesModuleData button[onclick*="salesSetView"]').forEach(b=>b.closest('div')?.remove());
+    c.querySelectorAll('#salesModuleData button').forEach(b=>{
+      const t=norm(b.textContent);
+      if(t.includes('pdf kehadiran')){b.title='Unduh PDF Kehadiran';b.setAttribute('aria-label',b.title);b.classList.add('sales-icon-action');b.innerHTML='📄';}
+      else if(t.includes('pdf aktivitas')){b.title='Unduh PDF Aktivitas';b.setAttribute('aria-label',b.title);b.classList.add('sales-icon-action');b.innerHTML='📊';}
+    });
+    c.querySelectorAll('#salesAgendaPanel').forEach(x=>x.remove());
+    // Agenda is not part of Laporan Sales for either role.
+    c.querySelectorAll('button').forEach(b=>{if(norm(b.textContent)==='agenda' && (b.closest('#content')?.querySelector('#salesModuleData')||role==='sales')){const p=b.parentElement;if(p&&p.children.length<=3)p.remove();else b.remove();}});
+  }
+  const oldRender=window.renderSalesModule;
+  if(typeof oldRender==='function')window.renderSalesModule=async function(){const out=await oldRender.apply(this,arguments);polishSales();return out;};
+  const obs=new MutationObserver(()=>polishSales());
+  const start=()=>{const c=document.getElementById('content');if(c)obs.observe(c,{childList:true,subtree:true});polishSales();};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 </script>
