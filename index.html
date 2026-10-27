@@ -3853,9 +3853,9 @@ capturePhotoAndAbsen = function(){
   const isHr=state.activeProfile.role==='hr';
   if(isHr&&isHRNonWorkingDay()){showToast('🏖️ Hari libur HR tidak memengaruhi XP atau KPI.');return;}
   if(isHr)state.selectedShift='pagi';
-  // Shift malam adalah WFH; GPS dan jarak kantor tidak menjadi syarat di frontend.
-  if(state.selectedShift!=='malam' && state.distanceToOffice===null){showToast('⚠️ GPS belum siap. Pastikan izin lokasi aktif.');return;}
-  if(state.selectedShift!=='malam' && state.distanceToOffice>(state.officeConfig?.maxDistance||300)){showToast(`⛔ Jarak ${state.distanceToOffice}m melebihi batas ${state.officeConfig?.maxDistance||300}m.`);return;}
+  // Jangan memutuskan geofence di frontend karena selectedShift tidak otoritatif
+  // (jadwal shift sebenarnya dibaca backend dari spreadsheet). Backend akan
+  // melewati geofence untuk shift malam dan tetap memvalidasi shift lain.
   const photo=capturePhotoDataUrl_();if(!photo){showToast('⚠️ Foto belum siap. Pastikan kamera aktif.');return;}
   const btn=document.getElementById('btnCapture');if(btn){btn.disabled=true;btn.textContent='⏳ Foto diambil • menyimpan di latar belakang…';}
   const slot=document.getElementById('cameraSlot');
