@@ -4531,6 +4531,74 @@ renderHRMessagesPage=async function(){
 })();
 </script>
 
+
+<style id="sales-hr-history-final-v4">
+/* Sales/HR: riwayat ringkas, tanpa tombol kembali yang menghabiskan ruang */
+#salesModuleData .sales-history-back, #salesModuleData button[data-sales-home-back="1"]{display:none!important}
+#salesModuleData #salesCalendarPanel{margin-top:8px}
+#salesModuleData #salesDetailPanel{margin-top:8px}
+</style>
+<script id="sales-hr-history-final-v4-script">
+(function(){
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const roleNow=()=>String(window.state?.activeProfile?.role||'').toLowerCase();
+  function clean(){
+    const role=roleNow(), c=document.getElementById('content'); if(!c)return;
+    // HR dashboard: remove agenda tile and reminder regardless of which dashboard renderer produced it.
+    if(role==='hr'){
+      c.querySelectorAll('.home-grid .home-tile, .home-grid button').forEach(el=>{
+        const t=norm(el.innerText||el.textContent);
+        if(t.includes('agenda & broadcast')||t.includes('agenda dan broadcast'))el.remove();
+      });
+      c.querySelectorAll('.hr-agenda-notice').forEach(el=>el.remove());
+    }
+    // Sales home: Agenda must not appear in the home tiles or bottom navigation.
+    if(role==='sales'){
+      if(!c.querySelector('#salesModuleData')) c.querySelectorAll('.home-grid .home-tile, .home-grid button').forEach(el=>{
+        if(norm(el.innerText||el.textContent)==='agenda')el.remove();
+      });
+      const nav=document.getElementById('bottomNav');
+      if(nav)nav.querySelectorAll('button,.navbtn').forEach(el=>{if(norm(el.innerText||el.textContent)==='agenda')el.remove();});
+    }
+    const data=c.querySelector('#salesModuleData');
+    if(data){
+      // Hide old view switcher that offered Agenda in the shared HR/Sales history view.
+      data.querySelectorAll('button[onclick*="salesSetView"]').forEach(b=>{const p=b.parentElement;if(p && p.children.length<=3)p.remove();else b.remove();});
+      // Remove the old back-to-home button only in the activity history area, not unrelated forms.
+      const history=data.querySelector('#salesCalendarPanel');
+      if(history){
+        let node=history;
+        for(let i=0;i<3&&node;i++,node=node.parentElement){
+          node.querySelectorAll('button').forEach(b=>{
+            const t=norm(b.textContent);
+            if(t.includes('kembali ke beranda')||t.includes('← beranda')||t==='beranda')b.remove();
+          });
+        }
+      }
+      // The Agenda panel is not part of the shared Riwayat Aktivitas / Laporan Sales screen.
+      data.querySelectorAll('#salesAgendaPanel').forEach(el=>el.remove());
+      data.querySelectorAll('button').forEach(b=>{
+        if(norm(b.textContent)==='agenda'){
+          const p=b.parentElement;
+          if(p && p.children.length<=3)p.remove(); else b.remove();
+        }
+      });
+    }
+    // Remove the V2 injected back button from Sales history only.
+    if(role==='sales' && window.salesPageV2==='history'){
+      c.querySelectorAll('button').forEach(b=>{if(norm(b.textContent).includes('kembali ke beranda'))b.remove();});
+    }
+  }
+  const oldSalesRender=window.renderSalesModule;
+  if(typeof oldSalesRender==='function')window.renderSalesModule=async function(){const result=await oldSalesRender.apply(this,arguments);clean();return result;};
+  const oldHRRender=window.renderHRDashboard;
+  if(typeof oldHRRender==='function')window.renderHRDashboard=function(){const result=oldHRRender.apply(this,arguments);clean();return result;};
+  const observer=new MutationObserver(()=>clean());
+  function start(){const c=document.getElementById('content');if(c)observer.observe(c,{childList:true,subtree:true});clean();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
+</script>
+
 </body>
 </html>
 <script id="v105ReportFilesFeedbackAndGlobalDates">
