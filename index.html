@@ -493,7 +493,7 @@
 <script>
 // Isi manual dengan URL Web App hasil Deploy Google Apps Script (Code.gs), format:
 // https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbw3zBHTsFZj4CaxPZ6YD9mEsPVjURXg5LWqM6wfY95xLAsjb7vt-9Idzd2HgKiuV9lC3w/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwZPlS19W_JDM0e6LcXaO7jRceEflGRijqFABsg8EMMoVGz7TETjsgkgTWgodUI7qvKaQ/exec';
 
 // Panggil backend Google Apps Script (Code.gs). action = nama action di doPost (mis. 'login', 'saveUser').
 // Mengembalikan {ok:true,...} dari server, atau {ok:false,error:'...'} kalau GAS_URL belum diisi / gagal koneksi.
@@ -4969,3 +4969,76 @@ renderAgendaSubTabContent=function(){_renderAgendaSubTabContent_activityFormV1()
   window.salesToggleEvidence=function(){const s=document.getElementById('salesAttStatus')?.value,h=document.getElementById('salesDoctorHint'),fields=document.getElementById('salesReportFields'),cam=document.getElementById('salesCamera');if(h)h.textContent=s==='Sakit'?'Lampirkan surat dokter sebagai bukti. Foto opsional, dapat diambil langsung dengan kamera.':s==='Izin'?'Keterangan izin wajib diisi.':'Hadir wajib disertai foto; isi indikator aktivitas di bawah ini.';if(fields)fields.style.display=s==='Hadir'?'':'none';if(cam)cam.style.display=(s==='Hadir'||s==='Sakit')?'':'none';if(s==='Izin')stopCamera();else if(!state.stream)startCamera();};
 })();
 </script>
+
+<!-- v5 corrective patch appended after all legacy scripts -->
+<style id="geoface-ui-correction-v5">
+/* Final UI correction: keep legacy renderers from reintroducing removed controls. */
+#salesModuleData [data-geoface-remove="1"]{display:none!important}
+</style>
+<script id="geoface-ui-correction-v5-script">
+(function(){
+  const norm = s => String(s || '').toLowerCase().replace(/[\s\u00a0]+/g, ' ').trim();
+  const role = () => norm(window.state && window.state.activeProfile && window.state.activeProfile.role);
+  const textOf = el => norm(el && (el.innerText || el.textContent));
+  function removeAgendaTile(root, includeBroadcast){
+    if(!root) return;
+    root.querySelectorAll('.home-grid .home-tile, .home-grid button, .home-tile').forEach(el => {
+      const t = textOf(el);
+      if(t === 'agenda' || (includeBroadcast && (t.includes('agenda & broadcast') || t.includes('agenda dan broadcast')))) el.remove();
+    });
+  }
+  function clean(){
+    const r = role();
+    const content = document.getElementById('content');
+    if(!content || !r) return;
+    if(r === 'sales'){
+      // Sales home: remove Agenda from the dashboard and bottom navigation.
+      if(!content.querySelector('#salesModuleData')) removeAgendaTile(content, false);
+      const nav = document.getElementById('bottomNav');
+      if(nav) nav.querySelectorAll('button,a,.navbtn').forEach(el => { if(textOf(el) === 'agenda') el.remove(); });
+    }
+    if(r === 'hr'){
+      // HR home: remove Agenda & Broadcast shortcut, including variants produced by older renderers.
+      removeAgendaTile(content, true);
+      content.querySelectorAll('.hr-agenda-notice,[class*="agenda-notice"]').forEach(el => el.remove());
+    }
+    const data = content.querySelector('#salesModuleData');
+    if(data){
+      // The shared HR/Sales calendar view is the canonical Riwayat Aktivitas / Laporan Sales view.
+      data.querySelectorAll('#salesAgendaPanel,[id*="AgendaPanel"], [data-view="agenda"]').forEach(el => el.remove());
+      data.querySelectorAll('button[onclick*="salesSetView"]').forEach(el => el.remove());
+      data.querySelectorAll('button').forEach(el => { if(textOf(el) === 'agenda') el.remove(); });
+      // Remove legacy view-switcher containers when they only contained the old Agenda/Presensi/History buttons.
+      data.querySelectorAll('div,nav').forEach(el => {
+        if(!el.children.length) return;
+        const direct = [...el.children].filter(ch => /^(BUTTON|A)$/.test(ch.tagName));
+        if(direct.length && direct.every(ch => /^(agenda|riwayat aktivitas|presensi|laporan sales)$/.test(textOf(ch)))){
+          direct.forEach(ch => ch.remove());
+          if(!el.textContent.trim() && !el.querySelector('*')) el.remove();
+        }
+      });
+      // On Sales history, the legacy home button is injected outside the calendar panel by an older script.
+      if(r === 'sales' && data.querySelector('#salesCalendarPanel')){
+        content.querySelectorAll('button,a').forEach(el => {
+          const t = textOf(el);
+          if(t.includes('kembali ke beranda') || t === '← beranda') el.remove();
+        });
+      }
+    }
+  }
+  let queued = false;
+  function schedule(){ if(queued) return; queued = true; requestAnimationFrame(() => { queued = false; clean(); }); }
+  function start(){
+    clean();
+    const root = document.getElementById('content') || document.body;
+    if(root) new MutationObserver(schedule).observe(root, {childList:true, subtree:true});
+    const nav = document.getElementById('bottomNav');
+    if(nav) new MutationObserver(schedule).observe(nav, {childList:true, subtree:true});
+    // Clean after navigation/render functions finish, including functions declared by scripts after </html>.
+    ['click','change'].forEach(evt => document.addEventListener(evt, () => setTimeout(clean, 0), true));
+    setInterval(clean, 900);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true}); else start();
+})();
+</script>
+
