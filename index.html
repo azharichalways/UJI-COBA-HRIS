@@ -4978,13 +4978,14 @@ renderAgendaSubTabContent=function(){_renderAgendaSubTabContent_activityFormV1()
 <script id="geoface-ui-correction-v5-script">
 (function(){
   const norm = s => String(s || '').toLowerCase().replace(/[\s\u00a0]+/g, ' ').trim();
-  const role = () => norm(window.state && window.state.activeProfile && window.state.activeProfile.role);
+  const role = () => { const v=norm(window.state && window.state.activeProfile && window.state.activeProfile.role); if(v.includes('sales')) return 'sales'; if(v==='hr' || v.includes('hr admin') || v.includes('human resource') || v.includes('hr-admin')) return 'hr'; return v; };
   const textOf = el => norm(el && (el.innerText || el.textContent));
   function removeAgendaTile(root, includeBroadcast){
     if(!root) return;
     root.querySelectorAll('.home-grid .home-tile, .home-grid button, .home-tile').forEach(el => {
-      const t = textOf(el);
-      if(t === 'agenda' || (includeBroadcast && (t.includes('agenda & broadcast') || t.includes('agenda dan broadcast')))) el.remove();
+      const title = textOf(el.querySelector('.title, .home-tile-title, strong, b') || el);
+      const t = norm(title);
+      if(t === 'agenda' || (includeBroadcast && (t === 'agenda & broadcast' || t === 'agenda dan broadcast' || t.includes('agenda & broadcast') || t.includes('agenda dan broadcast')))) el.remove();
     });
   }
   function clean(){
@@ -4993,13 +4994,13 @@ renderAgendaSubTabContent=function(){_renderAgendaSubTabContent_activityFormV1()
     if(!content || !r) return;
     if(r === 'sales'){
       // Sales home: remove Agenda from the dashboard and bottom navigation.
-      if(!content.querySelector('#salesModuleData')) removeAgendaTile(content, false);
+      if(!content.querySelector('#salesModuleData')) { removeAgendaTile(content, false); content.querySelectorAll('.home-grid .home-tile[onclick*="agenda"]').forEach(el=>{ const t=textOf(el.querySelector('.title')||el); if(t==='agenda') el.remove(); }); }
       const nav = document.getElementById('bottomNav');
       if(nav) nav.querySelectorAll('button,a,.navbtn').forEach(el => { if(textOf(el) === 'agenda') el.remove(); });
     }
     if(r === 'hr'){
       // HR home: remove Agenda & Broadcast shortcut, including variants produced by older renderers.
-      removeAgendaTile(content, true);
+      removeAgendaTile(content, true); content.querySelectorAll('.home-grid .home-tile[onclick*="agenda"]').forEach(el=>{ const t=textOf(el.querySelector('.title')||el); if(t.includes('agenda & broadcast')||t.includes('agenda dan broadcast')) el.remove(); });
       content.querySelectorAll('.hr-agenda-notice,[class*="agenda-notice"]').forEach(el => el.remove());
     }
     const data = content.querySelector('#salesModuleData');
