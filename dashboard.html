@@ -289,7 +289,7 @@ const SEG = [
   { label:'Terlambat',            fill:'#F0A23B', text:'#9A5B0B' },
   { label:'Belum presensi',       fill:'#6F8FD8', text:'#3A5BB0' },
   { label:'Alpha',                fill:'#E5584B', text:'#B73A2E' },
-  { label:'Libur / sakit / cuti', fill:'#A99BE0', text:'#6A58B8' }
+  { label:'Libur / sakit / cuti', fill:'#CBD5E1', text:'#5B6880' }
 ];
 const PRESETS = [['h','Hari ini'],['w','7 hari'],['m','30 hari']];
 const METRICS = [['tepat','Tepat waktu','#2FA36B'],['terlambat','Terlambat','#F0A23B'],['alpha','Alpha','#E5584B']];
@@ -799,7 +799,7 @@ async function prXlsx(){
     const h3 = ['No'].concat(showNik ? ['NIK'] : [], ['Nama']), h4 = h3.map(() => '');
     for (let d = 1; d <= nd; d++) { const dt = new Date(Date.UTC(Number(r.month.slice(0,4)), Number(r.month.slice(5,7)) - 1, d)); h3.push(d); h4.push(DOW[dt.getUTCDay()]); }
     [wd.getRow(3), wd.getRow(4)].forEach((rw, k) => { rw.values = k ? h4 : h3; rw.eachCell(c => { c.font = {name:'Calibri', bold:true, size:9.5, color:{argb:'FFFFFFFF'}}; c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:HEAD}}; c.alignment = {horizontal:'center', vertical:'middle'}; c.border = border; }); });
-    const FILL = {H:'FFD7F0E3', T:'FFFCE7C2', B:'FFD9E3F7', A:'FFF8D0CC', L:'FFE7E2F7', S:'FFE7E2F7', C:'FFE7E2F7'}, FONT = {A:'FFB73A2E', T:'FF9A5B0B', B:'FF3A5BB0'};
+    const FILL = {H:'FFD7F0E3', T:'FFFCE7C2', B:'FFD9E3F7', A:'FFF8D0CC', L:'FFFFFFFF', S:'FFFFFFFF', C:'FFFFFFFF'}, FONT = {A:'FFB73A2E', T:'FF9A5B0B', B:'FF3A5BB0', L:'FF64748B', S:'FF64748B', C:'FF64748B'};
     rows.forEach((u, i) => {
       const code = (u.d || '').split(''), vals = [i + 1].concat(showNik ? [u.nik] : [], [u.n]);
       for (let d = 0; d < nd; d++) vals.push(code[d] || '');
