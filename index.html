@@ -4320,9 +4320,8 @@ async function post(action,payload,ms){
 }
 
 /* ===== A. PRESENSI ===== */
-const prevGas=gasCall; let stash=null;
+const prevGas=gasCall;
 gasCall=async function(action,payload){
-  if(action==='getMySchedule'&&stash&&Date.now()-stash.at<8000){const r=stash.res;stash=null;return r;}
   const res=await prevGas.apply(this,arguments);
   if(res&&res.ok&&/^(review|resolve|implement|setHr|markHr|approve|reject|addLeave|addIdea|addGoodDeed|addActivity|requestAttendanceCorrection)/i.test(String(action))) setTimeout(()=>refreshBadges(true),700);
   return res;
@@ -4337,19 +4336,34 @@ renderAbsenTab=async function(){
   const navToken=window.__hrisNavSeq||0;
   const c=$('content');
   stopLoc();
-  if(c){c.classList.add('presensi-compact');c.innerHTML='<div class="card" style="text-align:center;padding:18px">Memeriksa status presensi…</div>';}
-  const res=await prevGas('getMySchedule',{});
-  if(navToken!==(window.__hrisNavSeq||0))return;
-  const a=res&&res.attendanceState;
-  window.v17Att=a?{...a,at:Date.now()}:null;
-  if(a&&a.state==='pulang'){renderCheckout(a);return;}
-  if(a&&a.state==='selesai'){renderDone(a);return;}
+  let a=window.v17Att&&Date.now()-window.v17Att.at<40000?window.v17Att:null;
+  if(!a){
+    if(c){c.classList.add('presensi-compact');c.innerHTML='<div class="card" style="text-align:center;padding:18px">Memeriksa status presensi…</div>';}
+    const r=await post('attendanceState',{},9000);          // ringan: tidak membaca jadwal eksternal
+    if(navToken!==(window.__hrisNavSeq||0))return;
+    a=r&&r.attendanceState?{...r.attendanceState,at:Date.now()}:null;
+    window.v17Att=a;
+  }
+  if(a&&a.state==='pulang'){renderCheckout(a);refreshAtt();return;}
+  if(a&&a.state==='selesai'){renderDone(a);refreshAtt();return;}
   state.selectedType='masuk';
-  stash={res,at:Date.now()};
   await prevRender();
-  // Pilihan Masuk/Pulang diganti penanda tetap "Absen Masuk" (pulang muncul otomatis setelah masuk).
   const tc=document.querySelector('#content .typechoice');
   if(tc)tc.outerHTML='<div class="v17-mode">🟢 Absen Masuk</div>';
+};
+// segarkan status di latar belakang (tanpa memblokir layar)
+async function refreshAtt(){const r=await post('attendanceState',{},9000);if(r&&r.attendanceState)window.v17Att={...r.attendanceState,at:Date.now()};}
+
+// Foto presensi masuk lebih ringan (720 px, JPEG 0.7 ≈ 50–90 KB) agar unggah cepat di sinyal lemah.
+capturePhotoDataUrl_=function(){
+  const video=document.getElementById('camVideo'),canvas=document.getElementById('camCanvas');
+  if(!video||!canvas||!video.videoWidth||!video.videoHeight)return null;
+  const ratio=Math.min(1,720/Math.max(video.videoWidth,video.videoHeight));
+  canvas.width=Math.max(1,Math.round(video.videoWidth*ratio));canvas.height=Math.max(1,Math.round(video.videoHeight*ratio));
+  const ctx=canvas.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);
+  try{if(camIsFlipped_()){ctx.translate(canvas.width,0);ctx.scale(-1,1);}}catch(_){}
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);ctx.setTransform(1,0,0,1,0,0);
+  try{return canvas.toDataURL('image/jpeg',0.7);}catch(_){return null;}
 };
 
 function renderCheckout(a){
@@ -4458,7 +4472,7 @@ window.v17Checkout=async function(){
 const prevCap=capturePhotoAndAbsen;
 capturePhotoAndAbsen=async function(){
   const r=await prevCap.apply(this,arguments);
-  window.v17Att=null;
+  window.v17Att=null;refreshAtt();
   const slot=$('cameraSlot');
   if(slot&&/Berhasil Dicatat/.test(slot.innerHTML)&&!slot.querySelector('.v17-note'))
     slot.insertAdjacentHTML('beforeend','<div class="v17-note" style="text-align:center">Saat pulang, buka <b>Presensi</b> lagi: tombol otomatis menjadi <b>Absen Pulang</b> (tanpa foto).</div>');
