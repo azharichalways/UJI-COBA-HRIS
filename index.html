@@ -1749,7 +1749,7 @@ function renderHalBaikTab() {
       <label>Apa yang Anda lakukan dan apa dampaknya?</label>
       <textarea id="halBaikEssay" rows="3" placeholder="Jelaskan tindakan, siapa yang terbantu, dan dampak positifnya..."></textarea>
       <button class="btn" onclick="submitHalBaik()">🌱 Kirim untuk Review Leader</button>
-      <div class="form-hint">Setelah dikonfirmasi Leader, Anda memperoleh <strong>+20 XP</strong>.</div>
+      <div class="form-hint">Setelah dikonfirmasi Leader, Anda memperoleh <strong>+50 XP</strong>.</div>
     </div>
 
     <h2 class="section-title">Riwayat Kontribusi Saya</h2>
@@ -1805,7 +1805,7 @@ function renderIdeTab() {
       <label>Masalah, solusi, dan manfaat</label>
       <textarea id="ideDesc" rows="4" placeholder="Jelaskan masalah yang ingin diselesaikan, usulan solusi, langkah awal, dan manfaatnya..."></textarea>
       <button class="btn" onclick="submitIde()">💡 Kirim Ide untuk Review</button>
-      <div class="form-hint">+5 XP saat mengirim ide. Bonus <strong>+25 XP</strong> saat ide diteruskan Leader ke HR.</div>
+      <div class="form-hint">+10 XP saat mengirim ide, <strong>+15 XP</strong> saat diteruskan Leader, <strong>+25 XP</strong> saat diterima HR, dan <strong>+50 XP</strong> saat diimplementasikan (total maksimal 100 XP).</div>
     </div>
 
     <h2 class="section-title">Perjalanan Ide Saya</h2>
@@ -1839,7 +1839,7 @@ function submitIde() {
   localStorage.setItem('ideas_all', JSON.stringify(state.ideas));
   addXpToUser(state.activeProfile.nik, 5);
   fireConfetti();
-  showToast('💡 Ide berhasil dikirim. +5 XP • Menunggu review Leader.');
+  showToast('💡 Ide berhasil dikirim. +10 XP • Menunggu review Leader.');
   renderIdeTab();
 }
 
@@ -2102,7 +2102,7 @@ function approveHalBaik(id, isApprove) {
   }
   localStorage.setItem('halbaik_all', JSON.stringify(state.halBaik));
   if (GAS_URL) gasCall('reviewGoodDeed', { id: item.id, status: item.status, note: item.leaderNote, reviewerNik: state.activeProfile.nik });
-  showToast(isApprove ? '✅ Kontribusi dikonfirmasi. +20 XP diberikan ke anggota.' : 'Kontribusi tidak disetujui.');
+  showToast(isApprove ? '✅ Kontribusi dikonfirmasi. +50 XP diberikan ke anggota.' : 'Kontribusi tidak disetujui.');
   renderLeaderDashboard();
 }
 
@@ -2937,7 +2937,7 @@ const V6_POLICY = {
   missingCheckoutPenaltyXp: 5,
   leaderSlaHours: 24,
   defaultWorkdays: [1,2,3,4,5], // Prototype: Senin–Jumat. Ganti dengan roster/shift produksi.
-  ideaRewards: { submit:5, leader:10, hrAccepted:20, implemented:50 }
+  ideaRewards: { submit:10, leader:15, hrAccepted:25, implemented:50 }
 };
 
 function v6LocalIso(d=new Date()){
@@ -3102,7 +3102,7 @@ function markIdeaImplemented(id){
 
 function renderIdeTab(){
   const c=document.getElementById('content'),myIdeas=state.ideas.filter(i=>i.nik===state.activeProfile.nik);
-  c.innerHTML=`<div class="home-hero"><div class="eyebrow">Ide & Inovasi</div><div class="title">Reward Berdasarkan Tahap Dampak</div><div class="desc">XP meningkat saat ide melewati tahapan nyata: dikirim, lolos Leader, diterima HR, hingga diimplementasikan.</div></div><div class="card"><label>Judul Ide / Gagasan</label><input id="ideTitle" placeholder="cth. Digitalisasi antrean Customer Service"><label>Masalah, solusi, dan manfaat</label><textarea id="ideDesc" rows="4" placeholder="Jelaskan masalah, solusi, langkah awal, dan manfaat..."></textarea><button class="btn" onclick="submitIde()">💡 Kirim Ide untuk Review</button><div class="form-hint">Kirim <strong>+5 XP</strong> → Lolos Leader <strong>+10 XP</strong> → Diterima HR <strong>+20 XP</strong> → Diimplementasikan <strong>+50 XP</strong>.</div></div><h2 class="section-title">Perjalanan Ide Saya</h2><div class="card">${myIdeas.length?myIdeas.map(i=>`<div class="timeline-item"><div class="timeline-top"><div class="timeline-title">${i.title}</div>${statusPill(i.status,'idea')}</div><div class="timeline-desc">${i.desc}</div><div class="workflow-mini"><span class="done">Kirim +5</span><span class="${['Forwarded','HRReview','HRAccepted','HRRejected','Implemented'].includes(i.status)?'done':''}">Leader +10</span><span class="${['HRAccepted','Implemented'].includes(i.status)?'done':''}">HR +20</span><span class="${i.status==='Implemented'?'done':''}">Implementasi +50</span></div><div class="timeline-meta">${i.date} • Leader: ${i.leaderNote||'-'}${i.hrNote&&i.hrNote!=='-'?` • HR: ${i.hrNote}`:''}</div></div>`).join(''):'<div class="empty">Belum ada ide.</div>'}</div>`;
+  c.innerHTML=`<div class="home-hero"><div class="eyebrow">Ide & Inovasi</div><div class="title">Reward Berdasarkan Tahap Dampak</div><div class="desc">XP meningkat saat ide melewati tahapan nyata: dikirim, lolos Leader, diterima HR, hingga diimplementasikan.</div></div><div class="card"><label>Judul Ide / Gagasan</label><input id="ideTitle" placeholder="cth. Digitalisasi antrean Customer Service"><label>Masalah, solusi, dan manfaat</label><textarea id="ideDesc" rows="4" placeholder="Jelaskan masalah, solusi, langkah awal, dan manfaat..."></textarea><button class="btn" onclick="submitIde()">💡 Kirim Ide untuk Review</button><div class="form-hint">Kirim <strong>+10 XP</strong> → Lolos Leader <strong>+15 XP</strong> → Diterima HR <strong>+25 XP</strong> → Diimplementasikan <strong>+50 XP</strong> (total maksimal 100 XP).</div></div><h2 class="section-title">Perjalanan Ide Saya</h2><div class="card">${myIdeas.length?myIdeas.map(i=>`<div class="timeline-item"><div class="timeline-top"><div class="timeline-title">${i.title}</div>${statusPill(i.status,'idea')}</div><div class="timeline-desc">${i.desc}</div><div class="workflow-mini"><span class="done">Kirim +5</span><span class="${['Forwarded','HRReview','HRAccepted','HRRejected','Implemented'].includes(i.status)?'done':''}">Leader +10</span><span class="${['HRAccepted','Implemented'].includes(i.status)?'done':''}">HR +20</span><span class="${i.status==='Implemented'?'done':''}">Implementasi +50</span></div><div class="timeline-meta">${i.date} • Leader: ${i.leaderNote||'-'}${i.hrNote&&i.hrNote!=='-'?` • HR: ${i.hrNote}`:''}</div></div>`).join(''):'<div class="empty">Belum ada ide.</div>'}</div>`;
 }
 
 function renderKinerjaTab(){
@@ -3712,7 +3712,7 @@ function v1021RecipientOptions(){
   return out;
 }
 async function sendHRPrivateMessageV9(){
-  const toNik=document.getElementById('msgToNik')?.value||'',subject=document.getElementById('msgSubject')?.value.trim()||'',text=document.getElementById('msgText')?.value.trim()||'',reminderDate=document.getElementById('msgReminderDate')?.value||'',xpBonus=parseInt(document.getElementById('msgXpBonus')?.value)||10;
+  const toNik=document.getElementById('msgToNik')?.value||'',subject=document.getElementById('msgSubject')?.value.trim()||'',text=document.getElementById('msgText')?.value.trim()||'',reminderDate=document.getElementById('msgReminderDate')?.value||'',xpBonus=0;
   if(!toNik){showToast('⚠️ Pilih penerima.');return;}
   if(!text){showToast('⚠️ Isi pesan terlebih dahulu.');return;}
   const u=state.allUsers.find(x=>sameId_(x.nik,toNik));
@@ -4408,7 +4408,7 @@ async function renderAttendanceHistoryV1011(monthFilter,selectedDate){
  const months=[...new Set(all.map(r=>attDateKeyV1013(r.date).slice(0,7)).filter(x=>/^\d{4}-\d{2}$/.test(x)))];if(!months.includes(current))months.push(current);months.sort().reverse();
  const countClass=cl=>Object.values(groups).some(arr=>arr.some(r=>attStatusClassV1013(r)===cl));
  let good=0,late=0,alpha=0,leave=0,other=0,totalXp=0;records.forEach(r=>{const cl=attStatusClassV1013(r),type=String(r.type||'').toLowerCase();totalXp+=Number(r.xp_earned||0);if(cl==='good'&&type==='masuk')good++;else if(cl==='late')late++;else if(cl==='pending')late++;else if(cl==='alpha')alpha++;else if(cl==='leave')leave++;else if(cl==='bad')other++;});
- const dayCells=[];for(let i=0;i<offset;i++)dayCells.push('<div class="att-cal-day empty"></div>');for(let day=1;day<=daysInMonth;day++){const date=`${current}-${String(day).padStart(2,'0')}`,arr=groups[date]||[];let cls='neutral';if(arr.length){const classes=arr.map(attStatusClassV1013);cls=arr.some(r=>/libur mendadak|sakit setengah/i.test(String(r.status_text||'')))?'leave':classes.includes('alpha')?'alpha':classes.includes('bad')?'bad':classes.includes('late')?'late':classes.includes('pending')?'pending':classes.includes('good')?'good':classes.includes('leave')?'leave':'neutral';}const co=attStatusColorV1013(cls);dayCells.push(`<button class="att-cal-day ${arr.length?'has-record':''} ${selectedDate===date?'selected':''}" ${arr.length?`onclick="renderAttendanceHistoryV1011('${current}','${date}')"`: 'disabled'} style="--day-bg:${arr.length?co[0]:'#f8fafc'};--day-border:${arr.length?co[1]:'#e5eaf1'};--day-color:${arr.length?co[2]:'#9aa6b7'}" aria-label="${date}${arr.length?', '+arr.length+' catatan':''}"><span>${day}</span></button>`);}
+ const dayCells=[];for(let i=0;i<offset;i++)dayCells.push('<div class="att-cal-day empty"></div>');for(let day=1;day<=daysInMonth;day++){const date=`${current}-${String(day).padStart(2,'0')}`,arr=groups[date]||[];let cls='neutral';if(arr.length){const classes=arr.map(attStatusClassV1013);cls=arr.some(r=>/libur mendadak|izin mendadak|sakit setengah/i.test(String(r.status_text||'')))?'leave':classes.includes('alpha')?'alpha':classes.includes('bad')?'bad':classes.includes('late')?'late':classes.includes('pending')?'pending':classes.includes('good')?'good':classes.includes('leave')?'leave':'neutral';}const co=attStatusColorV1013(cls);dayCells.push(`<button class="att-cal-day ${arr.length?'has-record':''} ${selectedDate===date?'selected':''}" ${arr.length?`onclick="renderAttendanceHistoryV1011('${current}','${date}')"`: 'disabled'} style="--day-bg:${arr.length?co[0]:'#f8fafc'};--day-border:${arr.length?co[1]:'#e5eaf1'};--day-color:${arr.length?co[2]:'#9aa6b7'}" aria-label="${date}${arr.length?', '+arr.length+' catatan':''}"><span>${day}</span></button>`);}
  const picked=selectedDate&&selectedDate.startsWith(current)&&groups[selectedDate]?selectedDate:(Object.keys(groups).sort().reverse()[0]||'');
  c.innerHTML=`<div id="attendancePrintArea"><div class="att-cal-wrap"><div class="att-cal-head"><strong>Kehadiran Saya<small>${records.length} catatan</small></strong><div class="att-tools att-no-print"><select aria-label="Pilih bulan" onchange="renderAttendanceHistoryV1011(this.value)">${months.map(m=>`<option value="${m}" ${m===current?'selected':''}>${escAttV1011(attMonthLabelV1013(m))}</option>`).join('')}</select><button class="att-ibtn" title="Simpan laporan PDF" aria-label="Simpan laporan PDF" onclick="printAttendancePDFV1013('${current}')">📄</button><button class="att-ibtn" title="Beranda" aria-label="Beranda" onclick="switchTab('home',true)">🏠</button></div></div><div class="att-cal-grid">${['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(x=>`<div class="att-cal-dow">${x}</div>`).join('')}${dayCells.join('')}</div></div><div class="att-summary"><div class="att-stat att-green"><strong>${good}</strong><span>Hadir</span></div><div class="att-stat att-yellow"><strong>${late}</strong><span>Terlambat/lupa</span></div><div class="att-stat att-red"><strong>${alpha+other}</strong><span>Alpha/masalah</span></div></div><div id="attDateDetail"></div><section id="attPdfReport" style="display:none"><div class="att-report-title"><h2>LAPORAN KEHADIRAN KARYAWAN</h2><div>${escAttV1011(state.activeProfile?.nama||'')} • ${escAttV1011(state.activeProfile?.nik||'')}</div><div>Periode ${escAttV1011(attMonthLabelV1013(current))}</div></div><p>Ringkasan: ${good} hadir tepat waktu; ${late} terlambat; ${leave} izin/libur; ${alpha} Alpha; ${other} masalah absensi.</p><p>Total catatan: ${records.length} • Total XP absensi: ${totalXp>0?'+':''}${totalXp}</p><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="border:1px solid #ccc;padding:5px">Tanggal</th><th style="border:1px solid #ccc;padding:5px">Jenis</th><th style="border:1px solid #ccc;padding:5px">Jam</th><th style="border:1px solid #ccc;padding:5px">Shift</th><th style="border:1px solid #ccc;padding:5px">Status</th><th style="border:1px solid #ccc;padding:5px">XP</th></tr></thead><tbody>${records.slice().sort((a,b)=>attDateKeyV1013(a.date).localeCompare(attDateKeyV1013(b.date))||attTimeV1012(a.time).localeCompare(attTimeV1012(b.time))).map(r=>`<tr><td style="border:1px solid #ccc;padding:5px">${escAttV1011(attDateV1012(r.date))}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(String(r.type||'system').toUpperCase())}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(attTimeV1012(r.time))}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(r.shift||'—')}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(r.status_text||r.status||'Tercatat')}</td><td style="border:1px solid #ccc;padding:5px;text-align:right">${Number(r.xp_earned||0)>0?'+':''}${Number(r.xp_earned||0)}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="5" style="border:1px solid #ccc;padding:5px;text-align:right">TOTAL XP</th><th style="border:1px solid #ccc;padding:5px;text-align:right">${totalXp>0?'+':''}${totalXp}</th></tr></tfoot></table></section></div>`;
  if(picked)attRenderDayDetailV1013(picked,records);else document.getElementById('attDateDetail').innerHTML='<div class="att-detail">Belum ada catatan kehadiran pada bulan ini.</div>';
@@ -5829,14 +5829,14 @@ details.an13-t>summary{list-style:none;cursor:pointer}details.an13-t>summary::-w
 (function(){
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const todayIso=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'});
-  const XP={positive:20,accepted:35,implemented:85};
+  const XP={positive:50,accepted:50,implemented:100};
   function info(){
     const kind=document.getElementById('ctKind')?.value, lvl=document.getElementById('ctLevel')?.value, el=document.getElementById('ctInfo'), lw=document.getElementById('ctLevelWrap');
     if(!el) return;
     if(lw) lw.style.display=kind==='idea'?'block':'none';
     if(kind==='idea'){
       const x=lvl==='HRAccepted'?XP.accepted:XP.implemented;
-      el.innerHTML='<b>+'+x+' XP</b> (sama dengan jalur ide normal: '+(lvl==='HRAccepted'?'ajukan 5 + Leader 10 + diterima HR 20':'ajukan 5 + Leader 10 + diterima HR 20 + diterapkan 50')+'). Masuk skor KPI <b>Ide &amp; Inovasi</b>: '+(lvl==='HRAccepted'?'bernilai 75':'bernilai 100')+' untuk ide ini (dirata-rata dengan ide lain orang tersebut).';
+      el.innerHTML='<b>+'+x+' XP</b> (sama dengan jalur ide normal: '+(lvl==='HRAccepted'?'ajukan 10 + Leader 15 + diterima HR 25':'ajukan 10 + Leader 15 + diterima HR 25 + diterapkan 50')+'). Masuk skor KPI <b>Ide &amp; Inovasi</b>: '+(lvl==='HRAccepted'?'bernilai 75':'bernilai 100')+' untuk ide ini (dirata-rata dengan ide lain orang tersebut).';
     }else{
       el.innerHTML='<b>+'+XP.positive+' XP</b>. Masuk skor KPI <b>Kontribusi Positif</b>: +20 poin per kontribusi (maksimal 100).';
     }
@@ -6070,7 +6070,7 @@ function showEarly(a,msg){
   const wTxt=Math.floor(worked/60)+' jam '+(worked%60)+' menit';
   const opts=[
     ['tugas_luar','🚗 Tugas di luar','Ada tugas/urusan kantor di luar. Tetap tercatat hadir.',true],
-    ['libur_mendadak','🏠 Libur mendadak','Berlaku bila bekerja kurang dari 4 jam. Hari ini dihitung Libur.',worked<EARLY_MIN],
+    ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak (pribadi/keluarga) dan baru bekerja kurang dari 4 jam. Hari ini dihitung Libur.',worked<EARLY_MIN],
     ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih. Hari ini dihitung Sakit.',worked>=EARLY_MIN]
   ];
   box.innerHTML=`<div class="v17-sheet"><div style="font-size:13px;font-weight:800">Pulang sebelum jam selesai</div>
@@ -6194,6 +6194,21 @@ attRenderDayDetailV1013=function(){
   }
   return r;
 };
+
+/* Bonus XP pesan & Koreksi XP manual HR dinonaktifkan */
+v5XpOptions=function(){return '<option value="0" selected>0 XP</option>';};
+function stripXpTools(){
+  document.querySelectorAll('#content .home-tile').forEach(t=>{if((t.querySelector('.title')?.textContent||'').trim()==='Koreksi XP')t.remove();});
+  const sel=document.getElementById('msgXpBonus');
+  if(sel&&!sel.dataset.v17){
+    sel.dataset.v17='1';sel.value='0';
+    const lab=sel.previousElementSibling,hint=sel.nextElementSibling;
+    if(lab&&/Bonus XP/i.test(lab.textContent))lab.style.display='none';
+    sel.style.display='none';
+    if(hint&&/XP/i.test(hint.textContent)&&hint.tagName!=='BUTTON')hint.style.display='none';
+  }
+  document.querySelectorAll('#content button').forEach(b=>{if(/Kirim Pesan Penting\s*\+\s*XP/i.test(b.textContent))b.textContent=b.textContent.replace(/\s*\+\s*XP/i,'');});
+}
 
 /* ===== B. LENCANA NOTIFIKASI ===== */
 let seen=null,sum=null,timer=null,lastFetch=0,painting=false;
@@ -6365,7 +6380,7 @@ switchAgendaSubTab=function(){const r=prevSub.apply(this,arguments);setTimeout((
 const prevHome=renderHomeTab;
 renderHomeTab=function(){const r=prevHome.apply(this,arguments);setTimeout(()=>{paintBadges();homeAtt();},50);return r;};
 let deb=null;
-new MutationObserver(()=>{clearTimeout(deb);deb=setTimeout(()=>{paintBadges();if(window.v17Att)paintAttendanceLabels(window.v17Att);},160);}).observe(document.body,{childList:true,subtree:true});
+new MutationObserver(()=>{clearTimeout(deb);deb=setTimeout(()=>{stripXpTools();paintBadges();if(window.v17Att)paintAttendanceLabels(window.v17Att);},160);}).observe(document.body,{childList:true,subtree:true});
 setTimeout(()=>{if(state.activeProfile)ensure();},1500);
 window.v17RefreshBadges=refreshBadges;
 
