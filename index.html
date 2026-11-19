@@ -451,8 +451,7 @@
       <input id="loginPass" class="mono" maxlength="2" type="password" placeholder="cth. 12">
       <button class="btn" id="btnLogin" onclick="loginUser()">Masuk ke Aplikasi</button>
       <div style="font-size:11px; color:var(--text-dim); text-align:center; margin-top:16px;">
-        💡 <em>Akun dibuat resmi oleh HR Admin. Hubungi HR jika belum memiliki Kode Unik.</em>
-      </div>
+              </div>
     </div>
   </div>
 
@@ -1088,7 +1087,7 @@ function renderProfilTab() {
     <details class="collapse-card">
       <summary>🔒 Keamanan & Password</summary>
       <div class="collapse-body">
-        <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.4;">Bagian ini dibuat tertutup agar halaman profil tetap ringkas. Buka hanya ketika diperlukan.</div>
+        <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.4;"></div>
         <label>Password Lama</label><input type="password" id="oldPassInput" maxlength="2" class="mono" placeholder="Password lama">
         <label>Password Baru (2 Karakter)</label><input type="password" id="newPassInput" maxlength="2" class="mono" placeholder="Password baru">
         <button class="btn" onclick="updateUserPassword()">🔑 Simpan Password Baru</button>
@@ -1955,7 +1954,7 @@ function renderSkorTab() {
         <button class="btn" onclick="updateUserPassword()">🔑 Simpan Password Baru</button>
       </div>
     </details>
-    <button class="btn danger" onclick="logoutUser()">🚪 Keluar / Ganti Akun</button>
+    <button class="btn danger" onclick="logoutUser()"> Keluar </button>
   `;
 }
 
@@ -5603,7 +5602,7 @@ details.an13-t>summary{list-style:none;cursor:pointer}details.an13-t>summary::-w
     const grid=c.querySelector('.home-grid'); if(!grid||!c.querySelector('.home-hero,.hr-kpi-card')) return;
     const b=document.createElement('button'); b.className='home-tile'; b.dataset.anonV13='1';
     b.setAttribute('onclick','renderAnonHomeV13()');
-    b.innerHTML='<div class="icon">🕊️</div><div class="title">Curhat Anonim ke HR</div><div class="desc">Tanpa nama. Hanya HR yang membaca.</div>';
+    b.innerHTML='<div class="icon">🕊️</div><div class="title">Curhat dong, Pak</div><div class="desc">Anonim & Rahasia.</div>';
     grid.appendChild(b); updateTileBadge(); getPass(false).catch(()=>{}); // siapkan tiket lebih dulu agar kirim tidak menunggu
     if(Date.now()-lastPoll>60000){lastPoll=Date.now();pollMine();}
   }
@@ -6071,7 +6070,7 @@ function showEarly(a,msg){
   const opts=[
     ['tugas_luar','🚗 Tugas di luar','Ada tugas/urusan kantor di luar. Tetap tercatat hadir.',true],
     ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak pribadi, keluarga, atau lainnya.',true],
-    ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih. Hari ini dihitung Sakit.',worked>=EARLY_MIN]
+    ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih.',worked>=EARLY_MIN]
   ];
   box.innerHTML=`<div class="v17-sheet"><div style="font-size:13px;font-weight:800">Pulang sebelum jam selesai</div>
     <div class="v17-note" style="margin:4px 0 6px">Anda sudah bekerja <b>${esc(wTxt)}</b>. Pilih alasan, isi keterangan, lalu absen pulang (tetap di kantor, radius 100 m).</div>
