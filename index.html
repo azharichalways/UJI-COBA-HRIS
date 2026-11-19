@@ -5957,6 +5957,7 @@ gasCall=async function(action,payload){
     if(res&&!res.ok&&/terlalu lama/.test(String(res.error||'')))res.error='Server sedang sibuk. Silakan coba lagi sebentar lagi.';
   }
   if(res&&res.ok){const t=$('toast');if(t&&/^⏳/.test(t.textContent||'')){clearTimeout(t._timer);t.style.display='none';}}   // tutup "Memproses…" begitu selesai
+  if(res&&res.ok&&/^setAgendaStatus$/.test(String(action)))setTimeout(()=>refreshAgendaLight(true),400);
   if(res&&res.ok&&/^(review|resolve|implement|setHr|markHr|approve|reject|addLeave|addIdea|addGoodDeed|addActivity|requestAttendanceCorrection)/i.test(String(action))) setTimeout(()=>refreshBadges(true),700);
   return res;
 };
@@ -6161,9 +6162,15 @@ function mark(cat,f){
   if(ch){saveSeen();paintBadges();}
 }
 const q=k=>num(sum&&sum.q&&sum.q[k]);
+// Agenda yang belum dikonfirmasi akun ini (lencana tetap sampai dikonfirmasi; konfirmasi lokal langsung mengurangi)
+function pendingAg(f){
+  if(!sum||!Array.isArray(sum.pa)||roleOf()==='hr')return 0;
+  const st=state.agendaUserStatus||{},nik=nikOf();
+  return sum.pa.filter(x=>!st[x.id+'_'+nik]&&(!f||f(x))).length;
+}
 function navCounts(){
   const r=roleOf();
-  let home=unseen('ann'),agenda=unseen('agd');
+  let home=unseen('ann'),agenda=r==='hr'?unseen('agd'):pendingAg();
   if(r==='hr'){home+=q('lv')+q('idea')+q('corr')+q('note')+q('rpt')+q('rev');agenda+=q('act');}
   else{home+=unseen('lv')+unseen('gd')+unseen('idea')+unseen('corr');agenda+=unseen('act');if(r==='leader')home+=q('lv')+q('gd')+q('idea')+q('corr');}
   return {home,agenda};
@@ -6171,8 +6178,9 @@ function navCounts(){
 function subCount(sub){
   const r=roleOf();
   if(sub==='kegiatan')return r==='hr'?q('act'):unseen('act');
-  if(sub==='team')return unseen('agd',i=>i.sc==='team');
-  if(sub==='agenda')return unseen('agd',i=>r==='karyawan'||i.sc!=='team');
+  if(r==='hr')return sub==='agenda'?unseen('agd'):0;
+  if(sub==='team')return pendingAg(x=>x.sc==='team');
+  if(sub==='agenda')return pendingAg(x=>r==='karyawan'||x.sc!=='team');
   return 0;
 }
 const TILES=[
@@ -6181,7 +6189,7 @@ const TILES=[
   [/^(Jadwal Libur|Ajukan Libur|Pengajuan Libur Saya)$/,()=>unseen('lv')],
   [/^(Kehadiran|Kehadiran Saya|Riwayat Absensi Saya|Daftar Kehadiran Saya|Ajukan Koreksi Absensi)$/,()=>roleOf()==='hr'?0:unseen('corr')],
   [/^Kegiatan$/,()=>roleOf()==='hr'?q('act'):unseen('act')],
-  [/^(Agenda|Agenda Saya|Agenda Perusahaan|Agenda Tim)$/,()=>unseen('agd')],[/^(Absen Kegiatan|Absen Kegiatan Tambahan)/,()=>roleOf()==='hr'?q('act'):unseen('act')],
+  [/^(Agenda|Agenda Saya|Agenda Perusahaan|Agenda Tim)$/,()=>roleOf()==='hr'?unseen('agd'):pendingAg()],[/^(Absen Kegiatan|Absen Kegiatan Tambahan)/,()=>roleOf()==='hr'?q('act'):unseen('act')],
   [/^(Pengajuan Libur|Persetujuan Libur)$/,()=>roleOf()==='leader'?q('lv'):0],
   [/^Hal Baik Tim$/,()=>q('gd')],[/^Ide Anggota$/,()=>q('idea')],
   [/^Pemeriksaan Absensi$/,()=>q('rev')],[/^Tinjau Koreksi Absensi$/,()=>q('corr')],
@@ -6234,6 +6242,21 @@ async function refreshBadges(force){
   onTab(state.currentTab,true);paintBadges();
   checkNewAgendas(r);
 }
+/* Pemeriksaan ringan (hanya pengumuman & agenda) tiap ±15 dtk agar agenda baru cepat muncul */
+let lastLight=0,lightBusy=false;
+async function refreshAgendaLight(force){
+  if(!state.activeProfile||!sessionStorage.getItem('ag_session_token')||lightBusy)return;
+  if(!sum||!seen){return refreshBadges(true);}
+  if(!force&&(document.hidden||Date.now()-lastLight<10000))return;
+  lightBusy=true;lastLight=Date.now();
+  try{
+    const r=await post('notifSummary',{light:true,fresh:!!force},20000);
+    if(!r||!r.ok||!sum)return;
+    sum={...sum,items:sum.items.filter(i=>i.c!=='ann'&&i.c!=='agd').concat(r.items),pa:r.pa||[]};
+    paintBadges();checkNewAgendas(r);
+  }finally{lightBusy=false;}
+}
+window.v17RefreshAgenda=refreshAgendaLight;
 /* Agenda baru dari server: tampilkan notifikasi, muat ulang daftar agenda, dan segarkan tampilan */
 const agdKey=()=>'ag_agd_toast_v17_'+nikOf();
 let syncing=false,lastSync=0;
@@ -6264,6 +6287,7 @@ async function checkNewAgendas(r){
 }
 function markAgenda(){
   const sub=state.agendaSubTab,r=roleOf();
+  if(r!=='hr'){if(sub==='kegiatan')mark('act');return;}   // karyawan/leader: lencana agenda hilang hanya setelah dikonfirmasi
   if(sub==='kegiatan')mark('act');
   else if(sub==='team')mark('agd',i=>i.sc==='team');
   else mark('agd',i=>r==='karyawan'||i.sc!=='team');
@@ -6274,7 +6298,11 @@ function onTab(tab,quiet){
   if(!quiet)ensure();
 }
 function ensure(){
-  if(!timer){timer=setInterval(()=>refreshBadges(false),75000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshBadges(false);});}
+  if(!timer){
+    let n=0;timer=setInterval(()=>{if(document.hidden)return;n++;if(n%5===0)refreshBadges(false);else refreshAgendaLight(false);},15000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshAgendaLight(false);refreshBadges(false);}});
+    window.addEventListener('focus',()=>refreshAgendaLight(false));
+  }
   if(!sum||Date.now()-lastFetch>30000)refreshBadges(false);
 }
 const prevSwitch=switchTab;
@@ -6282,8 +6310,8 @@ switchTab=function(tab){
   // Ada agenda baru yang belum dilihat → buka langsung sub-tab Agenda (bukan Kegiatan)
   if(tab==='agenda'&&sum&&seen){
     const r0=roleOf();
-    if(r0==='leader'&&unseen('agd',i=>i.sc==='team')>0)state.agendaSubTab='team';
-    else if(r0!=='hr'&&unseen('agd',i=>r0==='karyawan'||i.sc!=='team')>0)state.agendaSubTab='agenda';
+    if(r0==='leader'&&pendingAg(x=>x.sc==='team')>0)state.agendaSubTab='team';
+    else if(r0!=='hr'&&pendingAg(x=>r0==='karyawan'||x.sc!=='team')>0)state.agendaSubTab='agenda';
   }
   const r=prevSwitch.apply(this,arguments);setTimeout(()=>{onTab(tab);paintBadges();},0);return r;};
 const prevSub=switchAgendaSubTab;
