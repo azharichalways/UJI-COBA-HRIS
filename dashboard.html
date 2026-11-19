@@ -274,6 +274,14 @@ const dLabel = d => Number(d.slice(8)) + ' ' + BULAN[Number(d.slice(5, 7)) - 1];
 const dLong = d => dLabel(d) + ' ' + d.slice(0, 4);
 
 async function api(action, payload){
+  let r = await api1(action, payload);
+  if (r && !r.ok && /terlalu lama|Tidak bisa menghubungi/.test(String(r.error || ''))) {   // dashboard hanya membaca: aman diulang satu kali
+    await new Promise(x => setTimeout(x, 800)); r = await api1(action, payload);
+    if (r && !r.ok && /terlalu lama/.test(String(r.error || ''))) r.error = 'Server sedang sibuk. Muat ulang sebentar lagi.';
+  }
+  return r;
+}
+async function api1(action, payload){
   const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 60000);
   try {
     const res = await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
