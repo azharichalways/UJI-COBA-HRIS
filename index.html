@@ -6070,7 +6070,7 @@ function showEarly(a,msg){
   const wTxt=Math.floor(worked/60)+' jam '+(worked%60)+' menit';
   const opts=[
     ['tugas_luar','🚗 Tugas di luar','Ada tugas/urusan kantor di luar. Tetap tercatat hadir.',true],
-    ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak pribadi, keluarga, atau lainnya. Berapa lama pun sudah bekerja, boleh izin mendadak.',true],
+    ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak pribadi, keluarga, atau lainnya.',true],
     ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih. Hari ini dihitung Sakit.',worked>=EARLY_MIN]
   ];
   box.innerHTML=`<div class="v17-sheet"><div style="font-size:13px;font-weight:800">Pulang sebelum jam selesai</div>
