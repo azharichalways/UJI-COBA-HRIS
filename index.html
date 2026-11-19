@@ -4372,7 +4372,7 @@ renderHomeTab=function(){v1012RenderHome();const c=document.getElementById('cont
  `;document.head.appendChild(style);
 })();
 function attDateKeyV1013(v){const s=String(v||'');const m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;const d=new Date(v);if(!isNaN(d))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;return '';}
-function attStatusClassV1013(r){const s=String(r.status_text||r.status||'').toLowerCase();if(/alpha/.test(s))return 'alpha';if(/gagal|ditolak/.test(s))return 'bad';if(/terlambat|pulang awal|tidak absen pulang|hadir briefing/.test(s))return 'late';if(/menunggu|pending|pemeriksaan/.test(s))return 'pending';if(/izin|libur|cuti|sakit|dikecualikan|bukti skt/.test(s))return 'leave';if(/tepat waktu|hadir|pulang|approved|disetujui/.test(s))return 'good';return 'neutral';}
+function attStatusClassV1013(r){const s=String(r.status_text||r.status||'').toLowerCase();if(/alpha/.test(s))return 'alpha';if(/gagal|ditolak/.test(s))return 'bad';if(/terlambat|pulang awal|tidak absen pulang|hadir briefing/.test(s))return 'late';if(/menunggu|pending|pemeriksaan/.test(s))return 'pending';if(/izin|libur|cuti|sakit|dikecualikan|bukti skt/.test(s))return 'leave';if(/tepat waktu|hadir|pulang|tugas luar|approved|disetujui/.test(s))return 'good';return 'neutral';}
 function attStatusColorV1013(cls){return ({good:['#e8f8ef','#b9e8cc','#13804a'],late:['#fff7dc','#f3df9b','#a66a00'],alpha:['#fff0f0','#f2bfc2','#c52d35'],bad:['#fff0f0','#f2bfc2','#c52d35'],pending:['#eef4ff','#c7d7fb','#2457d6'],leave:['#ffffff','#dce4ee','#64748b'],neutral:['#ffffff','#dce4ee','#64748b']})[cls]||['#ffffff','#dce4ee','#64748b'];}
 function attMonthLabelV1013(m){return ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][Number(m.slice(5,7))-1]+' '+m.slice(0,4);}
 function attRenderDayDetailV1013(date,records){
@@ -4408,7 +4408,7 @@ async function renderAttendanceHistoryV1011(monthFilter,selectedDate){
  const months=[...new Set(all.map(r=>attDateKeyV1013(r.date).slice(0,7)).filter(x=>/^\d{4}-\d{2}$/.test(x)))];if(!months.includes(current))months.push(current);months.sort().reverse();
  const countClass=cl=>Object.values(groups).some(arr=>arr.some(r=>attStatusClassV1013(r)===cl));
  let good=0,late=0,alpha=0,leave=0,other=0,totalXp=0;records.forEach(r=>{const cl=attStatusClassV1013(r),type=String(r.type||'').toLowerCase();totalXp+=Number(r.xp_earned||0);if(cl==='good'&&type==='masuk')good++;else if(cl==='late')late++;else if(cl==='pending')late++;else if(cl==='alpha')alpha++;else if(cl==='leave')leave++;else if(cl==='bad')other++;});
- const dayCells=[];for(let i=0;i<offset;i++)dayCells.push('<div class="att-cal-day empty"></div>');for(let day=1;day<=daysInMonth;day++){const date=`${current}-${String(day).padStart(2,'0')}`,arr=groups[date]||[];let cls='neutral';if(arr.length){const classes=arr.map(attStatusClassV1013);cls=classes.includes('alpha')?'alpha':classes.includes('bad')?'bad':classes.includes('late')?'late':classes.includes('pending')?'pending':classes.includes('good')?'good':classes.includes('leave')?'leave':'neutral';}const co=attStatusColorV1013(cls);dayCells.push(`<button class="att-cal-day ${arr.length?'has-record':''} ${selectedDate===date?'selected':''}" ${arr.length?`onclick="renderAttendanceHistoryV1011('${current}','${date}')"`: 'disabled'} style="--day-bg:${arr.length?co[0]:'#f8fafc'};--day-border:${arr.length?co[1]:'#e5eaf1'};--day-color:${arr.length?co[2]:'#9aa6b7'}" aria-label="${date}${arr.length?', '+arr.length+' catatan':''}"><span>${day}</span></button>`);}
+ const dayCells=[];for(let i=0;i<offset;i++)dayCells.push('<div class="att-cal-day empty"></div>');for(let day=1;day<=daysInMonth;day++){const date=`${current}-${String(day).padStart(2,'0')}`,arr=groups[date]||[];let cls='neutral';if(arr.length){const classes=arr.map(attStatusClassV1013);cls=arr.some(r=>/libur mendadak|sakit setengah/i.test(String(r.status_text||'')))?'leave':classes.includes('alpha')?'alpha':classes.includes('bad')?'bad':classes.includes('late')?'late':classes.includes('pending')?'pending':classes.includes('good')?'good':classes.includes('leave')?'leave':'neutral';}const co=attStatusColorV1013(cls);dayCells.push(`<button class="att-cal-day ${arr.length?'has-record':''} ${selectedDate===date?'selected':''}" ${arr.length?`onclick="renderAttendanceHistoryV1011('${current}','${date}')"`: 'disabled'} style="--day-bg:${arr.length?co[0]:'#f8fafc'};--day-border:${arr.length?co[1]:'#e5eaf1'};--day-color:${arr.length?co[2]:'#9aa6b7'}" aria-label="${date}${arr.length?', '+arr.length+' catatan':''}"><span>${day}</span></button>`);}
  const picked=selectedDate&&selectedDate.startsWith(current)&&groups[selectedDate]?selectedDate:(Object.keys(groups).sort().reverse()[0]||'');
  c.innerHTML=`<div id="attendancePrintArea"><div class="att-cal-wrap"><div class="att-cal-head"><strong>Kehadiran Saya<small>${records.length} catatan</small></strong><div class="att-tools att-no-print"><select aria-label="Pilih bulan" onchange="renderAttendanceHistoryV1011(this.value)">${months.map(m=>`<option value="${m}" ${m===current?'selected':''}>${escAttV1011(attMonthLabelV1013(m))}</option>`).join('')}</select><button class="att-ibtn" title="Simpan laporan PDF" aria-label="Simpan laporan PDF" onclick="printAttendancePDFV1013('${current}')">📄</button><button class="att-ibtn" title="Beranda" aria-label="Beranda" onclick="switchTab('home',true)">🏠</button></div></div><div class="att-cal-grid">${['Sen','Sel','Rab','Kam','Jum','Sab','Min'].map(x=>`<div class="att-cal-dow">${x}</div>`).join('')}${dayCells.join('')}</div></div><div class="att-summary"><div class="att-stat att-green"><strong>${good}</strong><span>Hadir</span></div><div class="att-stat att-yellow"><strong>${late}</strong><span>Terlambat/lupa</span></div><div class="att-stat att-red"><strong>${alpha+other}</strong><span>Alpha/masalah</span></div></div><div id="attDateDetail"></div><section id="attPdfReport" style="display:none"><div class="att-report-title"><h2>LAPORAN KEHADIRAN KARYAWAN</h2><div>${escAttV1011(state.activeProfile?.nama||'')} • ${escAttV1011(state.activeProfile?.nik||'')}</div><div>Periode ${escAttV1011(attMonthLabelV1013(current))}</div></div><p>Ringkasan: ${good} hadir tepat waktu; ${late} terlambat; ${leave} izin/libur; ${alpha} Alpha; ${other} masalah absensi.</p><p>Total catatan: ${records.length} • Total XP absensi: ${totalXp>0?'+':''}${totalXp}</p><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="border:1px solid #ccc;padding:5px">Tanggal</th><th style="border:1px solid #ccc;padding:5px">Jenis</th><th style="border:1px solid #ccc;padding:5px">Jam</th><th style="border:1px solid #ccc;padding:5px">Shift</th><th style="border:1px solid #ccc;padding:5px">Status</th><th style="border:1px solid #ccc;padding:5px">XP</th></tr></thead><tbody>${records.slice().sort((a,b)=>attDateKeyV1013(a.date).localeCompare(attDateKeyV1013(b.date))||attTimeV1012(a.time).localeCompare(attTimeV1012(b.time))).map(r=>`<tr><td style="border:1px solid #ccc;padding:5px">${escAttV1011(attDateV1012(r.date))}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(String(r.type||'system').toUpperCase())}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(attTimeV1012(r.time))}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(r.shift||'—')}</td><td style="border:1px solid #ccc;padding:5px">${escAttV1011(r.status_text||r.status||'Tercatat')}</td><td style="border:1px solid #ccc;padding:5px;text-align:right">${Number(r.xp_earned||0)>0?'+':''}${Number(r.xp_earned||0)}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="5" style="border:1px solid #ccc;padding:5px;text-align:right">TOTAL XP</th><th style="border:1px solid #ccc;padding:5px;text-align:right">${totalXp>0?'+':''}${totalXp}</th></tr></tfoot></table></section></div>`;
  if(picked)attRenderDayDetailV1013(picked,records);else document.getElementById('attDateDetail').innerHTML='<div class="att-detail">Belum ada catatan kehadiran pada bulan ini.</div>';
@@ -5925,6 +5925,24 @@ st.textContent=`
 .v17-tbl{width:100%;border-collapse:collapse;font-size:11.5px}.v17-tbl th,.v17-tbl td{padding:6px 5px;border-bottom:1px solid rgba(148,163,184,.25);text-align:center;white-space:nowrap}
 .v17-tbl th{cursor:pointer;font-size:10.5px;color:#475569;position:sticky;top:0;background:#f8fafc}.v17-tbl td:first-child,.v17-tbl th:first-child{text-align:left;position:sticky;left:0;background:#fff;max-width:130px;overflow:hidden;text-overflow:ellipsis}
 .v17-tbl tr.tot td{font-weight:800;background:#f1f5f9}.v17-tbl .a{color:#b91c1c;font-weight:700}.v17-tbl .b{color:#b45309;font-weight:700}
+@keyframes v17up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes v17pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
+@keyframes v17draw{to{stroke-dashoffset:0}}
+@keyframes v17sheet{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#content>*{animation:v17up .22s ease-out both}
+#content>*:nth-child(2){animation-delay:.03s}#content>*:nth-child(3){animation-delay:.06s}#content>*:nth-child(4){animation-delay:.09s}
+.btn,.home-tile,.subnav-btn,.navbtn{transition:transform .12s ease,box-shadow .2s ease,background-color .2s ease}
+.btn:active,.home-tile:active{transform:scale(.97)}
+.v17-ok{width:62px;height:62px;margin:0 auto 4px;display:block;animation:v17pop .45s cubic-bezier(.2,.9,.3,1.2) both}
+.v17-ok circle{fill:none;stroke-width:3;stroke-dasharray:151;stroke-dashoffset:151;animation:v17draw .5s .05s ease-out forwards}
+.v17-ok path{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:v17draw .35s .45s ease-out forwards}
+.v17-sheet{margin-top:12px;padding:12px;border-radius:12px;border:1px solid #f3df9b;background:#fffaf0;animation:v17sheet .25s ease-out both}
+.v17-opt{display:flex;gap:9px;align-items:flex-start;padding:10px;margin:7px 0;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;transition:border-color .15s,background-color .15s}
+.v17-opt input{width:18px!important;min-width:18px;height:18px;flex:0 0 18px;margin:2px 0 0!important;padding:0!important}.v17-opt>div{flex:1;min-width:0;text-align:left}.v17-opt b{font-size:13px;display:block}.v17-opt small{display:block;font-size:11px;color:#64748b;margin-top:2px;line-height:1.4}
+.v17-opt.sel{border-color:#d97706;background:#fff7dc}.v17-opt.off{opacity:.5;cursor:not-allowed;background:#f8fafc}
+.v17-sheet textarea{width:100%;min-height:62px;margin-top:6px;padding:9px;border-radius:9px;border:1px solid #dce4ee;font:inherit;font-size:13px;box-sizing:border-box}
+.v17-err{color:#b91c1c;font-size:12px;font-weight:700;margin-top:6px}
+@media (prefers-reduced-motion:reduce){#content>*,.v17-ok,.v17-ok *,.v17-sheet{animation:none!important;stroke-dashoffset:0!important}}
 .v17-scroll{overflow:auto;max-height:62vh;border-radius:10px;border:1px solid rgba(148,163,184,.3)}
 `;
 document.head.appendChild(st);
@@ -6012,8 +6030,9 @@ function renderCheckout(a){
     <div class="v17-row"><span>Absen masuk</span><b>${esc(a.masukTime||'-')}</b>${pill(a.masukStatus)}</div>
     <div class="v17-row"><span>Shift</span><b>${esc(SHIFT_LABEL[a.shift]||a.shift||'-')}</b>${a.shiftEnd?`<em class="v17-pill" style="background:#fff;color:#64748b;box-shadow:inset 0 0 0 1px #dce4ee">Selesai ${esc(a.shiftEnd)}</em>`:''}</div>
     <div class="v17-row"><span>Tanggal kerja</span><b>${esc(a.workDate||'')}</b></div>
-    <div class="v17-note" id="v17CoNote">${early?'🟡 Belum waktunya pulang. Absen sekarang akan tercatat <b style="color:#a66a00">Pulang Awal</b> (kuning, −10 XP).':'🟢 Waktunya pulang. Tercatat <b style="color:#13804a">Pulang</b> (hijau). Tanpa foto, cukup satu ketukan.'}</div>
+    <div class="v17-note" id="v17CoNote">${early?'🟡 Belum waktunya pulang. Anda akan diminta memilih alasan dan mengisi keterangan, lalu absen tetap dilakukan di kantor.':'🟢 Waktunya pulang. Tercatat <b style="color:#13804a">Pulang</b> (hijau). Tanpa foto, cukup satu ketukan.'}</div>
     <button class="btn" id="btnCheckout" onclick="v17Checkout()">🏁 Absen Pulang Sekarang</button>
+    <div id="v17Early"></div>
     <div id="resultSlot"></div>
   </div>`;
   const box=$('v17Loc');
@@ -6033,7 +6052,7 @@ function renderDone(a,rec){
   const night=a.nightDone&&!rec;
   c.innerHTML=`<h2 class="section-title">Presensi ${night?'Shift Malam Selesai':'Hari Ini Selesai'}</h2>
   <div class="card v17-co" style="text-align:center;border:2px solid ${attendanceStatusStyle_(a.pulangStatus).color};background:${attendanceStatusStyle_(a.pulangStatus).bg}">
-    <div style="font-size:30px">✅</div>
+    <svg class="v17-ok" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="24" stroke="${attendanceStatusStyle_(a.pulangStatus).color}"/><path d="M16 28l8 8 15-17" stroke="${attendanceStatusStyle_(a.pulangStatus).color}"/></svg>
     <div style="font-size:14px;font-weight:800;margin:4px 0 10px">${night?'Shift malam Anda sudah lengkap':'Absen masuk & pulang sudah tercatat'}</div>
     <div class="v17-row"><span>Tanggal kerja</span><b>${esc(a.workDate||a.today||'')}</b></div>
     <div class="v17-row"><span>Absen masuk</span><b>${esc(a.masukTime||'-')}</b>${pill(a.masukStatus)}</div>
@@ -6044,6 +6063,32 @@ function renderDone(a,rec){
 }
 
 let busy=false,armed=false,armTimer=null;
+const EARLY_MIN=240;
+function showEarly(a,msg){
+  const box=$('v17Early');if(!box)return;
+  const worked=Math.max(0,(a.workedMin||0)+Math.floor((Date.now()-(a.at||Date.now()))/60000));
+  const wTxt=Math.floor(worked/60)+' jam '+(worked%60)+' menit';
+  const opts=[
+    ['tugas_luar','🚗 Tugas di luar','Ada tugas/urusan kantor di luar. Tetap tercatat hadir.',true],
+    ['libur_mendadak','🏠 Libur mendadak','Berlaku bila bekerja kurang dari 4 jam. Hari ini dihitung Libur.',worked<EARLY_MIN],
+    ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih. Hari ini dihitung Sakit.',worked>=EARLY_MIN]
+  ];
+  box.innerHTML=`<div class="v17-sheet"><div style="font-size:13px;font-weight:800">Pulang sebelum jam selesai</div>
+    <div class="v17-note" style="margin:4px 0 6px">Anda sudah bekerja <b>${esc(wTxt)}</b>. Pilih alasan, isi keterangan, lalu absen pulang (tetap di kantor, radius 100 m).</div>
+    ${opts.map(o=>`<label class="v17-opt ${o[3]?'':'off'}" data-k="${o[0]}"><input type="radio" name="v17er" value="${o[0]}" ${o[3]?'':'disabled'}><div><b>${o[1]}</b><small>${o[2]}</small></div></label>`).join('')}
+    <textarea id="v17EarlyNote" maxlength="200" placeholder="Keterangan wajib (min. 5 huruf), mis. antar dokumen ke klien / demam sejak pagi"></textarea>
+    <div class="v17-err" id="v17EarlyErr">${esc(msg||'')}</div>
+    <button class="btn" id="v17EarlyGo" style="margin-top:10px;background:linear-gradient(135deg,#f59e0b,#d97706)">Kirim & Absen Pulang</button></div>`;
+  const labels=[...box.querySelectorAll('.v17-opt')];
+  labels.forEach(l=>l.addEventListener('click',()=>{if(l.classList.contains('off'))return;labels.forEach(x=>x.classList.remove('sel'));l.classList.add('sel');const r=l.querySelector('input');if(r)r.checked=true;}));
+  $('v17EarlyGo').onclick=()=>{
+    const k=(box.querySelector('input[name=v17er]:checked')||{}).value,note=($('v17EarlyNote').value||'').trim(),err=$('v17EarlyErr');
+    if(!k){err.textContent='Pilih salah satu alasan.';return;}
+    if(note.length<5){err.textContent='Keterangan wajib diisi (minimal 5 huruf).';return;}
+    box.innerHTML='';window.v17Checkout({reason:k,note});
+  };
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 function pendingId(a){
   const k='ag_pending_out_'+nikOf()+'_'+(a.workDate||'');
   let id=sessionStorage.getItem(k);
@@ -6058,19 +6103,16 @@ function getFix(){
     navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy||0}),fallback,{enableHighAccuracy:true,timeout:6000,maximumAge:5000});
   });
 }
-window.v17Checkout=async function(){
+window.v17Checkout=async function(opts){
   const a=window.v17Att;if(!a||busy)return;
   const btn=$('btnCheckout'),slot=$('resultSlot');
   const label='🏁 Absen Pulang Sekarang';
-  if(a.early&&!armed){ // konfirmasi singkat hanya untuk Pulang Awal (mencegah salah tekan)
-    armed=true;btn.textContent='⚠️ Ya, tetap pulang (Pulang Awal)';btn.classList.add('danger');btn.style.background='linear-gradient(135deg,#f59e0b,#d97706)';
-    clearTimeout(armTimer);armTimer=setTimeout(()=>{armed=false;if(btn&&!busy){btn.textContent=label;btn.classList.remove('danger');btn.style.background='';}},6000);
-    return;
-  }
+  if(a.early&&!opts){showEarly(a);return;}
   busy=true;btn.disabled=true;btn.classList.remove('danger');btn.style.background='';btn.textContent='⏳ Mengirim…';if(slot)slot.innerHTML='';
   const fail=(m)=>{busy=false;armed=false;btn.disabled=false;btn.textContent=label;if(slot)slot.innerHTML=`<div style="margin-top:10px;font-size:12px;font-weight:700;color:#b91c1c">⛔ ${esc(m)}</div>`;};
   const pid=pendingId(a);
   const payload={id:pid.id,type:'pulang'};
+  if(opts)Object.assign(payload,{earlyReason:opts.reason,earlyNote:opts.note});
   if(a.needsLocation){
     const fix=await getFix();
     if(!fix)return fail('GPS belum siap. Aktifkan izin lokasi lalu coba lagi.');
@@ -6085,6 +6127,10 @@ window.v17Checkout=async function(){
   }
   if(!res||!res.ok){
     if(res&&res.error==='DOUBLE_ATTENDANCE'){sessionStorage.removeItem(pid.k);busy=false;return renderAbsenTab();}
+    if(res&&/^EARLY_/.test(String(res.error||''))){          // server menilai ini pulang awal / pilihan tidak sesuai jam kerja
+      const a2={...a,early:true,workedMin:res.workedMin!=null?res.workedMin:a.workedMin,at:Date.now()};window.v17Att=a2;
+      fail(res.message||'Pilih alasan pulang awal.');showEarly(a2,res.message);return;
+    }
     return fail((res&&(res.message||res.error))||'Absen pulang gagal. Coba lagi.');
   }
   sessionStorage.removeItem(pid.k);
