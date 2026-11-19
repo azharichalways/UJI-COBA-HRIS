@@ -502,7 +502,7 @@ async function gasCall(action, payload = {}) {
   if (!GAS_URL) return { ok:false, error:'GAS_URL belum diisi.' };
   const token = sessionStorage.getItem('ag_session_token') || '';
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), action === 'resetAllHrisData' ? 90000 : (action === 'addAttendance' ? 45000 : (action === 'getPendingActivities' ? 20000 : (action === 'sendBulkPrivateMessage' ? 45000 : 12000))));
+  const timeout = setTimeout(() => controller.abort(), action === 'resetAllHrisData' ? 90000 : (action === 'addAttendance' ? 45000 : (action === 'getPendingActivities' ? 30000 : (action === 'sendBulkPrivateMessage' ? 45000 : 30000))));
   try {
     const res = await fetch(GAS_URL, {
       method:'POST',
@@ -5930,22 +5930,33 @@ st.textContent=`
 document.head.appendChild(st);
 
 /* ===== jaringan: satu kali kirim dengan batas waktu (dipakai absen pulang agar cepat gagal & bisa diulang) ===== */
+const READ_ACT=/^(attendanceState|notifSummary|payrollRecap|get[A-Z]|bootstrap|dash)/;
 async function post(action,payload,ms){
+  let r=await post1(action,payload,ms);
+  if(r&&r.error==='NETWORK'&&READ_ACT.test(action)){await sleep(700);r=await post1(action,payload,ms);}   // baca-saja: aman diulang satu kali
+  return r;
+}
+async function post1(action,payload,ms){
   const token=sessionStorage.getItem('ag_session_token')||'';
-  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||15000);
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||25000);
   try{
     const r=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,payload,token}),signal:ctl.signal});
     const d=await r.json();
     if(d&&d.error==='SESSION_EXPIRED'){sessionStorage.removeItem('ag_session_token');sessionStorage.removeItem('active_user_session');}
     return d;
-  }catch(e){return {ok:false,error:'NETWORK',message:e&&e.name==='AbortError'?'Server terlalu lama merespons.':'Tidak bisa menghubungi server.'};}
+  }catch(e){return {ok:false,error:'NETWORK',message:e&&e.name==='AbortError'?'Server sedang sibuk. Coba lagi sebentar.':'Tidak bisa menghubungi server.'};}
   finally{clearTimeout(to);}
 }
 
 /* ===== A. PRESENSI ===== */
 const prevGas=gasCall;
 gasCall=async function(action,payload){
-  const res=await prevGas.apply(this,arguments);
+  let res=await prevGas.apply(this,arguments);
+  if(res&&!res.ok&&/terlalu lama|Tidak bisa menghubungi/.test(String(res.error||''))&&READ_ACT.test(String(action))){
+    await sleep(700);res=await prevGas.apply(this,arguments);                       // permintaan baca: ulang otomatis satu kali
+    if(res&&!res.ok&&/terlalu lama/.test(String(res.error||'')))res.error='Server sedang sibuk. Silakan coba lagi sebentar lagi.';
+  }
+  if(res&&res.ok){const t=$('toast');if(t&&/^⏳/.test(t.textContent||'')){clearTimeout(t._timer);t.style.display='none';}}   // tutup "Memproses…" begitu selesai
   if(res&&res.ok&&/^(review|resolve|implement|setHr|markHr|approve|reject|addLeave|addIdea|addGoodDeed|addActivity|requestAttendanceCorrection)/i.test(String(action))) setTimeout(()=>refreshBadges(true),700);
   return res;
 };
@@ -5962,7 +5973,7 @@ renderAbsenTab=async function(){
   let a=window.v17Att&&Date.now()-window.v17Att.at<40000?window.v17Att:null;
   if(!a){
     if(c){c.classList.add('presensi-compact');c.innerHTML='<div class="card" style="text-align:center;padding:18px">Memeriksa status presensi…</div>';}
-    const r=await post('attendanceState',{},9000);          // ringan: tidak membaca jadwal eksternal
+    const r=await post('attendanceState',{},20000);          // ringan: tidak membaca jadwal eksternal
     if(navToken!==(window.__hrisNavSeq||0))return;
     a=r&&r.attendanceState?{...r.attendanceState,at:Date.now()}:null;
     window.v17Att=a;
@@ -5975,7 +5986,7 @@ renderAbsenTab=async function(){
   if(tc)tc.outerHTML='<div class="v17-mode">🟢 Absen Masuk</div>';
 };
 // segarkan status di latar belakang (tanpa memblokir layar)
-async function refreshAtt(){const r=await post('attendanceState',{},9000);if(r&&r.attendanceState)window.v17Att={...r.attendanceState,at:Date.now()};}
+async function refreshAtt(){const r=await post('attendanceState',{},20000);if(r&&r.attendanceState)window.v17Att={...r.attendanceState,at:Date.now()};}
 
 // Foto presensi masuk lebih ringan (720 px, JPEG 0.7 ≈ 50–90 KB) agar unggah cepat di sinyal lemah.
 capturePhotoDataUrl_=function(){
@@ -6107,7 +6118,7 @@ capturePhotoAndAbsen=async function(){
 /* Beranda: tile Presensi menyesuaikan status (Masuk → Absen Pulang → Selesai) */
 async function homeAtt(){
   let a=window.v17Att&&Date.now()-window.v17Att.at<45000?window.v17Att:null;
-  if(!a){const r=await post('attendanceState',{},12000);a=r&&r.attendanceState?{...r.attendanceState,at:Date.now()}:null;if(a)window.v17Att=a;}
+  if(!a){const r=await post('attendanceState',{},20000);a=r&&r.attendanceState?{...r.attendanceState,at:Date.now()}:null;if(a)window.v17Att=a;}
   paintAttendanceLabels(a);
 }
 function paintAttendanceLabels(a){
@@ -6161,7 +6172,7 @@ function subCount(sub){
   const r=roleOf();
   if(sub==='kegiatan')return r==='hr'?q('act'):unseen('act');
   if(sub==='team')return unseen('agd',i=>i.sc==='team');
-  if(sub==='agenda'||sub==='hragenda')return unseen('agd',i=>r==='karyawan'||i.sc!=='team');
+  if(sub==='agenda')return unseen('agd',i=>r==='karyawan'||i.sc!=='team');
   return 0;
 }
 const TILES=[
@@ -6170,7 +6181,7 @@ const TILES=[
   [/^(Jadwal Libur|Ajukan Libur|Pengajuan Libur Saya)$/,()=>unseen('lv')],
   [/^(Kehadiran|Kehadiran Saya|Riwayat Absensi Saya|Daftar Kehadiran Saya|Ajukan Koreksi Absensi)$/,()=>roleOf()==='hr'?0:unseen('corr')],
   [/^Kegiatan$/,()=>roleOf()==='hr'?q('act'):unseen('act')],
-  [/^Agenda$/,()=>unseen('agd')],
+  [/^(Agenda|Agenda Saya|Agenda Perusahaan|Agenda Tim)$/,()=>unseen('agd')],[/^(Absen Kegiatan|Absen Kegiatan Tambahan)/,()=>roleOf()==='hr'?q('act'):unseen('act')],
   [/^(Pengajuan Libur|Persetujuan Libur)$/,()=>roleOf()==='leader'?q('lv'):0],
   [/^Hal Baik Tim$/,()=>q('gd')],[/^Ide Anggota$/,()=>q('idea')],
   [/^Pemeriksaan Absensi$/,()=>q('rev')],[/^Tinjau Koreksi Absensi$/,()=>q('corr')],
@@ -6191,7 +6202,7 @@ function paintBadges(){
       if(n>0){if(!el){el=document.createElement('i');el.className='v17-nb';b.appendChild(el);}const t=cap(n);if(el.textContent!==t)el.textContent=t;}
       else if(el)el.remove();
     });
-    document.querySelectorAll('.subnav-btn').forEach(b=>{
+    document.querySelectorAll('.subnav-btn,.agenda-menu-item,.agenda-menu-wide').forEach(b=>{
       const m=(b.getAttribute('onclick')||'').match(/switchAgendaSubTab\('([a-z]+)'\)/);if(!m)return;
       const n=subCount(m[1]);let el=b.querySelector('.v17-sb');
       if(n>0){if(!el){el=document.createElement('span');el.className='v17-sb';b.appendChild(el);}const t=cap(n);if(el.textContent!==t)el.textContent=t;}
@@ -6211,7 +6222,7 @@ async function refreshBadges(force){
   if(!state.activeProfile||!sessionStorage.getItem('ag_session_token'))return;
   if(!force&&(document.hidden||Date.now()-lastFetch<30000))return;
   lastFetch=Date.now();
-  const r=await post('notifSummary',{fresh:!!force},15000);
+  const r=await post('notifSummary',{fresh:!!force},25000);
   if(!r||!r.ok)return;
   sum=r;if(!seen)loadSeen();
   if(!seen){ // pertama kali di perangkat ini: yang sudah ada dianggap sudah dilihat, hanya hal baru yang berlencana
@@ -6221,6 +6232,35 @@ async function refreshBadges(force){
     saveSeen();
   }
   onTab(state.currentTab,true);paintBadges();
+  checkNewAgendas(r);
+}
+/* Agenda baru dari server: tampilkan notifikasi, muat ulang daftar agenda, dan segarkan tampilan */
+const agdKey=()=>'ag_agd_toast_v17_'+nikOf();
+let syncing=false,lastSync=0;
+async function checkNewAgendas(r){
+  const ids=r.items.filter(i=>i.c==='agd').map(i=>i);
+  let known=null;try{known=JSON.parse(localStorage.getItem(agdKey())||'null');}catch(_){}
+  if(!known){try{localStorage.setItem(agdKey(),JSON.stringify(ids.map(i=>i.id+'|'+i.s)));}catch(_){}return;}   // pertama kali: jangan banjiri notifikasi lama
+  const fresh=ids.filter(i=>known.indexOf(i.id+'|'+i.s)<0);
+  const local=new Set((state.agendas||[]).map(a=>String(a.id)));
+  const missing=ids.some(i=>!local.has(i.id));
+  if(!fresh.length&&!missing)return;
+  if(fresh.length){
+    try{localStorage.setItem(agdKey(),JSON.stringify(ids.map(i=>i.id+'|'+i.s)));}catch(_){}
+    const t=fresh[0].t;
+    showToast('🔔 '+(fresh.length>1?fresh.length+' agenda baru dari HR':'Agenda baru: '+(t||'lihat menu Agenda')));
+  }
+  if(syncing||Date.now()-lastSync<45000)return;
+  syncing=true;lastSync=Date.now();
+  try{
+    const ok=await syncFromServer();
+    if(ok){
+      const tab=state.currentTab;
+      if(tab==='agenda'&&typeof renderAgendaTab==='function')renderAgendaTab();
+      else if(tab==='home'&&typeof renderHomeTab==='function')renderHomeTab();
+      paintBadges();
+    }
+  }catch(_){}finally{syncing=false;}
 }
 function markAgenda(){
   const sub=state.agendaSubTab,r=roleOf();
@@ -6238,7 +6278,14 @@ function ensure(){
   if(!sum||Date.now()-lastFetch>30000)refreshBadges(false);
 }
 const prevSwitch=switchTab;
-switchTab=function(tab){const r=prevSwitch.apply(this,arguments);setTimeout(()=>{onTab(tab);paintBadges();},0);return r;};
+switchTab=function(tab){
+  // Ada agenda baru yang belum dilihat → buka langsung sub-tab Agenda (bukan Kegiatan)
+  if(tab==='agenda'&&sum&&seen){
+    const r0=roleOf();
+    if(r0==='leader'&&unseen('agd',i=>i.sc==='team')>0)state.agendaSubTab='team';
+    else if(r0!=='hr'&&unseen('agd',i=>r0==='karyawan'||i.sc!=='team')>0)state.agendaSubTab='agenda';
+  }
+  const r=prevSwitch.apply(this,arguments);setTimeout(()=>{onTab(tab);paintBadges();},0);return r;};
 const prevSub=switchAgendaSubTab;
 switchAgendaSubTab=function(){const r=prevSub.apply(this,arguments);setTimeout(()=>{markAgenda();paintBadges();},0);return r;};
 const prevHome=renderHomeTab;
@@ -6276,7 +6323,7 @@ window.renderPayrollRecapV17=function(){
 window.v17RecapLoad=async function(){
   const m=$('rcMonth')?.value,body=$('rcBody');if(!body)return;
   body.innerHTML='<div style="text-align:center;padding:18px;font-size:12px">⏳ Menghitung rekap…</div>';
-  const r=await post('payrollRecap',{month:m},40000);
+  const r=await post('payrollRecap',{month:m},60000);
   if(!$('rcBody'))return;
   if(!r||!r.ok){body.innerHTML=`<div style="color:#b91c1c;font-size:12px;padding:10px">⛔ ${esc((r&&(r.message||r.error))||'Gagal memuat rekap.')}</div>`;return;}
   rcv.data=r;paintRecap();
