@@ -6089,7 +6089,7 @@ function renderDone(a,rec){
     <div class="v17-row"><span>Tanggal kerja</span><b>${esc(a.workDate||a.today||'')}</b></div>
     <div class="v17-row"><span>Absen masuk</span><b>${esc(a.masukTime||'-')}</b>${pill(a.masukStatus)}</div>
     <div class="v17-row"><span>Absen pulang</span><b>${esc(a.pulangTime||'-')}</b>${pill(a.pulangStatus)}</div>
-    ${a.offPending?'<div class="v17-wait">⏳ Absen Tugas Luar menunggu konfirmasi HR. XP 0; jika ditolak, hari ini dihitung tidak hadir.</div>':''}
+    ${a.offPending?'<div class="v17-wait">⏳ Absen Tugas Luar menunggu konfirmasi HR; XP diberikan setelah disetujui.</div>':''}
     ${a.offRejected?'<div class="v17-rej">⛔ Ada absen Tugas Luar yang ditolak HR. Hubungi HR jika perlu koreksi.</div>':''}
     ${rec&&rec.id?`<div class="v17-note">No. bukti: <b>${esc(rec.id)}</b></div>`:''}
     <button class="btn secondary" style="margin-top:10px" onclick="switchTab('home',true)">Kembali ke Beranda</button>
@@ -6507,16 +6507,18 @@ window.v17OffOpen=async function(type){
     <div class="v17-ovh"><b>📍 Absen ${offType==='masuk'?'Masuk':'Pulang'} di Luar Kantor</b><button type="button" onclick="v17OffClose()" aria-label="Tutup">✕</button></div>
     <div class="v17-note" style="margin:2px 0 6px">${hr
       ?'Pulang di luar kantor langsung tercatat (XP 0). Isi alasan dan keterangan, lalu ambil foto.'
-      :'Boleh di mana saja dan jam berapa saja (tidak mengikuti shift). Absen ini <b>menunggu konfirmasi HR</b> dan XP 0. Jika ditolak: masuk dihitung Alpha, pulang dihitung tidak absen pulang, dan XP dipotong. Gunakan hanya untuk tugas yang benar-benar di luar kantor.'}</div>
+      :'Boleh di mana saja dan jam berapa saja (tidak mengikuti shift). Absen ini <b>menunggu konfirmasi HR</b> dan XP 0. XP diberikan setelah HR menyetujui. HR dapat menjadikan masuk Terlambat/Alpha, atau pulang Pulang Awal/ditolak. Lokasi pulang direkam otomatis. Gunakan hanya untuk tugas yang benar-benar di luar kantor.'}</div>
     ${hr?'<select id="v17OffReason"><option value="">Pilih alasan…</option><option>Meeting di Luar</option><option>Izin pribadi</option><option>Sakit</option></select>':''}
     <textarea id="v17OffNote" maxlength="200" placeholder="${hr?'Keterangan (min. 5 huruf)':'Keterangan tugas luar (min. 10 huruf), mis. antar dokumen ke klien di Cimahi'}"></textarea>
     <div class="v17-cam"><video id="v17OffVid" autoplay playsinline muted></video><img id="v17OffImg" alt="Foto presensi" style="display:none"></div>
+    <div class="v17-note" id="v17OffLoc" style="margin:0 0 4px">📍 Mencari lokasi…</div>
     <div class="v17-err" id="v17OffErr"></div>
     <div class="v17-btnrow"><button type="button" class="btn secondary" id="v17OffSnap">📷 Ambil Foto</button><button type="button" class="btn" id="v17OffSend" disabled>Kirim</button></div>
   </div>`;
   document.body.appendChild(ov);
   const err=m=>{const e=$('v17OffErr');if(e)e.textContent=m||'';};
-  offFix=getFix();                                   // GPS opsional (tercatat untuk HR bila tersedia), tidak menghalangi
+  offFix=getFix();                                   // masuk: GPS opsional; pulang: wajib (direkam otomatis)
+  Promise.resolve(offFix).then(f=>{const l=$('v17OffLoc');if(l)l.innerHTML=(f&&f.lat!=null)?`📍 Lokasi terekam otomatis (±${Math.round(f.accuracy||0)} m)`:(offType==='pulang'?'⚠️ Lokasi belum terbaca — aktifkan GPS (wajib untuk absen pulang).':'📍 Lokasi tidak terbaca (opsional untuk absen masuk).');}).catch(()=>{});
   try{
     offStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960}},audio:false});
     const v=$('v17OffVid');if(v){v.srcObject=offStream;}
@@ -6543,7 +6545,11 @@ async function v17OffSend(){
   if(note.length<(hr?5:10)){err(`Keterangan wajib diisi (minimal ${hr?5:10} huruf).`);return;}
   if(!offPhoto){err('Ambil foto terlebih dahulu.');return;}
   offBusy=true;const send=$('v17OffSend');send.disabled=true;send.textContent='⏳ Mengirim…';
-  const fix=await Promise.race([offFix||Promise.resolve(null),sleep(2500).then(()=>null)]);
+  let fix=await Promise.race([offFix||Promise.resolve(null),sleep(offType==='pulang'?9000:2500).then(()=>null)]);
+  if(offType==='pulang'&&!(fix&&fix.lat!=null)){
+    offFix=getFix();fix=await Promise.race([offFix,sleep(6000).then(()=>null)]);
+    if(!(fix&&fix.lat!=null)){offBusy=false;send.disabled=false;send.textContent='Kirim';err('Lokasi belum terbaca. Aktifkan GPS/izin lokasi lalu tekan Kirim lagi. Lokasi wajib direkam untuk absen pulang di luar kantor.');return;}
+  }
   const k='ag_pending_off_'+nikOf()+'_'+offType+'_'+new Date(Date.now()+7*3600e3).toISOString().slice(0,10);
   let id=sessionStorage.getItem(k);if(!id){id='OFF-'+Date.now()+'-'+nikOf();sessionStorage.setItem(k,id);}
   const payload={id,type:offType,offsite:true,offsiteNote:note,photoBase64:offPhoto};
@@ -6580,7 +6586,7 @@ window.renderOffsiteReviewV17=async function(){
   if(token!==(window.__hrisNavSeq||0)||!$('content'))return;
   if(!res||!res.ok){c.innerHTML=head+`<div class="card" style="font-size:12px">Gagal memuat: ${esc((res&&(res.message||res.error))||'Kesalahan koneksi')}<div style="margin-top:8px"><button class="btn secondary" onclick="renderOffsiteReviewV17()">Coba lagi</button></div></div>`;return;}
   const rows=res.records||[];
-  c.innerHTML=head+`<div class="v17-note" style="margin:0 2px 8px">${rows.length} absen luar menunggu keputusan. <b>Setujui</b> = tercatat Tugas Luar (XP 0). <b>Tolak</b> = masuk dihitung Alpha (−20 XP) atau pulang dihitung tidak absen pulang (−5 XP); alasan wajib.</div>`+
+  c.innerHTML=head+`<div class="v17-note" style="margin:0 2px 8px">${rows.length} absen luar menunggu keputusan. <b>Masuk:</b> Setujui = Tugas Luar (XP seperti masuk tepat waktu +50) · Terlambat = XP terlambat masuk (−10) · Alpha = −20 XP. <b>Pulang:</b> Setujui = XP 0 · Pulang Awal (XP sesuai aturan saat ini) · Tolak = tidak absen pulang (−5 XP). Alasan wajib bila menolak/Alpha.</div>`+
   (rows.length?rows.map(r=>{
     const map=(r.lat!==''&&r.lat!=null&&r.lng!==''&&r.lng!=null)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat)},${encodeURIComponent(r.lng)}" target="_blank" rel="noopener">🗺️ Peta</a>`:'<span style="font-size:11px;color:#94a3b8;margin-right:10px">Lokasi tidak tercatat</span>';
     const ph=r.photo_url?`<a href="${esc(r.photo_url)}" target="_blank" rel="noopener">🖼️ Foto</a>`:'';
@@ -6589,14 +6595,16 @@ window.renderOffsiteReviewV17=async function(){
     <div class="n">${esc(String(r.attendance_reason||'').replace(/^Tugas Luar:\s*/,''))}</div>
     <div style="margin-top:6px">${map}${ph}</div>
     <input id="offNote_${esc(r.id)}" maxlength="160" placeholder="Catatan HR (wajib jika menolak)">
-    <div class="bt"><button class="btn" onclick="v17OffDecide('${esc(r.id)}','approve')">✅ Setujui</button><button class="btn danger" onclick="v17OffDecide('${esc(r.id)}','reject')">⛔ Tolak</button></div></article>`;
+    ${String(r.type)==='pulang'
+      ?`<div class="bt"><button class="btn" onclick="v17OffDecide('${esc(r.id)}','approve')">✅ Setujui (XP 0)</button><button class="btn secondary" onclick="v17OffDecide('${esc(r.id)}','early')">🏃 Pulang Awal</button></div><div class="bt"><button class="btn danger" onclick="v17OffDecide('${esc(r.id)}','reject')">⛔ Tolak (−5 XP)</button></div>`
+      :`<div class="bt"><button class="btn" onclick="v17OffDecide('${esc(r.id)}','approve')">✅ Setujui (+50 XP)</button><button class="btn secondary" onclick="v17OffDecide('${esc(r.id)}','late')">⏰ Terlambat (−10 XP)</button></div><div class="bt"><button class="btn danger" onclick="v17OffDecide('${esc(r.id)}','reject')">⛔ Alpha (−20 XP)</button></div>`}</article>`;
   }).join(''):'<div class="card" style="text-align:center;font-size:12px">Tidak ada absen luar yang menunggu. 🎉</div>');
 };
 function roleLabelV17(r){r=String(r||'').toLowerCase();return r==='leader'?'Leader':r==='hr'?'HR':'Karyawan';}
 window.v17OffDecide=async function(id,decision){
   const note=($('offNote_'+id)?.value||'').trim();
-  if(decision==='reject'&&note.length<3){showToast('⚠️ Isi alasan penolakan terlebih dahulu.');$('offNote_'+id)?.focus();return;}
-  if(!confirm(decision==='approve'?'Setujui absen luar ini sebagai Tugas Luar?':'Tolak absen luar ini? Penalti XP akan diterapkan.'))return;
+  if(decision==='reject'&&note.length<3){showToast('⚠️ Isi alasan penolakan/Alpha terlebih dahulu.');$('offNote_'+id)?.focus();return;}
+  if(!confirm(({approve:'Setujui absen luar ini sebagai Tugas Luar?',late:'Jadikan Terlambat Masuk (XP terlambat)?',early:'Jadikan Pulang Awal?',reject:'Tolak absen luar ini? Penalti XP akan diterapkan.'})[decision]))return;
   const res=await gasCall('reviewOffsiteAttendance',{id,decision,note});
   if(!res||!res.ok){showToast('❌ '+((res&&(res.message||res.error))||'Keputusan gagal. Coba lagi.'));return;}
   showToast('✅ '+(res.message||'Keputusan disimpan.'));
