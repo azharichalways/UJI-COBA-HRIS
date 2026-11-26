@@ -451,7 +451,8 @@
       <input id="loginPass" class="mono" maxlength="2" type="password" placeholder="cth. 12">
       <button class="btn" id="btnLogin" onclick="loginUser()">Masuk ke Aplikasi</button>
       <div style="font-size:11px; color:var(--text-dim); text-align:center; margin-top:16px;">
-              </div>
+        💡 <em>Akun dibuat resmi oleh HR Admin. Hubungi HR jika belum memiliki Kode Unik.</em>
+      </div>
     </div>
   </div>
 
@@ -905,17 +906,39 @@ function showMainScreen() {
   switchTab('home', true);
 }
 
+/* Tingkatan XP (seumur kerja). XP pengguna tidak diubah; tingkatan hanya dihitung dari total XP.
+   Perkiraan waktu mengikuti ±1.200 XP/bulan untuk karyawan yang disiplin (50 XP per absen masuk tepat waktu). */
+const XP_LEVELS = [
+  { min: 0,      icon: '🗡️', name: 'Warrior' },
+  { min: 500,    icon: '🛡️', name: 'Elite' },
+  { min: 1200,   icon: '🔮', name: 'Master' },
+  { min: 3600,   icon: '🏵️', name: 'Grandmaster' },
+  { min: 7200,   icon: '⚡', name: 'Epic' },
+  { min: 14400,  icon: '👑', name: 'Legend' },
+  { min: 24000,  icon: '🔥', name: 'Mythic' },
+  { min: 36000,  icon: '🎖️', name: 'Mythical Honor' },
+  { min: 60000,  icon: '🌟', name: 'Mythical Glory' },
+  { min: 100000, icon: '💎', name: 'Mythical Immortal' }
+];
+function xpLevelOf(xp) {
+  const v = Number(xp) || 0; let idx = 0;
+  XP_LEVELS.forEach((l, i) => { if (v >= l.min) idx = i; });
+  return { idx, cur: XP_LEVELS[idx], next: XP_LEVELS[idx + 1] || null, xp: v };
+}
+
 function updateGamifyBar() {
   const u = state.activeProfile;
   document.getElementById('barStreak').textContent = u.streak || 0;
   document.getElementById('barXP').textContent = u.xp || 0;
 
-  let badge = '🏆 Pemula';
-  if (u.xp >= 300) badge = '👑 Legenda Telesindo';
-  else if (u.xp >= 150) badge = '⭐ Hero Tim';
-  else if (u.xp >= 50) badge = '🥇 Bintang Disiplin';
-
-  document.getElementById('barBadge').textContent = badge;
+  const lv = xpLevelOf(u.xp);
+  const el = document.getElementById('barBadge');
+  el.textContent = lv.cur.icon + ' ' + lv.cur.name;
+  const hint = lv.next
+    ? `Tingkatan ${lv.cur.name} • ${(lv.next.min - lv.xp).toLocaleString('id-ID')} XP lagi menuju ${lv.next.name}`
+    : `Tingkatan tertinggi: ${lv.cur.name}`;
+  el.title = hint; el.style.cursor = 'pointer';
+  el.onclick = () => showToast(hint);
 }
 
 function renderBroadcastBanner() {
@@ -1087,7 +1110,7 @@ function renderProfilTab() {
     <details class="collapse-card">
       <summary>🔒 Keamanan & Password</summary>
       <div class="collapse-body">
-        <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.4;"></div>
+        <div style="font-size:10.5px;color:var(--text-dim);margin-bottom:10px;line-height:1.4;">Bagian ini dibuat tertutup agar halaman profil tetap ringkas. Buka hanya ketika diperlukan.</div>
         <label>Password Lama</label><input type="password" id="oldPassInput" maxlength="2" class="mono" placeholder="Password lama">
         <label>Password Baru (2 Karakter)</label><input type="password" id="newPassInput" maxlength="2" class="mono" placeholder="Password baru">
         <button class="btn" onclick="updateUserPassword()">🔑 Simpan Password Baru</button>
@@ -1954,7 +1977,7 @@ function renderSkorTab() {
         <button class="btn" onclick="updateUserPassword()">🔑 Simpan Password Baru</button>
       </div>
     </details>
-    <button class="btn danger" onclick="logoutUser()"> Keluar </button>
+    <button class="btn danger" onclick="logoutUser()">🚪 Keluar / Ganti Akun</button>
   `;
 }
 
@@ -4317,7 +4340,7 @@ window.GEOFACЕ_POLICY_V10_6 = { xpMayBeNegative: true, kpiRange: [0,100], appro
   `;
   document.head.appendChild(style);
 })();
-function attClassV1012(status){const s=String(status||'').toLowerCase();if(/alpha|ditolak|gagal/.test(s))return 'att-red';if(/terlambat|tidak absen pulang|pulang awal|hadir briefing/.test(s))return 'att-yellow';if(/menunggu|pending|pemeriksaan/.test(s))return 'att-blue';if(/izin|libur|cuti|sakit|dikecualikan|system/.test(s))return 'att-gray';if(/tepat waktu|hadir|pulang|approved|disetujui/.test(s))return 'att-green';return 'att-gray';}
+function attClassV1012(status){const s=String(status||'').toLowerCase();if(/alpha|ditolak|gagal/.test(s))return 'att-red';if(/terlambat|tidak absen pulang|pulang awal|hadir briefing/.test(s))return 'att-yellow';if(/menunggu|pending|pemeriksaan/.test(s))return 'att-blue';if(/izin|libur|cuti|sakit|dikecualikan|system/.test(s))return 'att-gray';if(/tepat waktu|hadir|pulang|tugas luar|approved|disetujui/.test(s))return 'att-green';return 'att-gray';}
 function attTimeV1012(v){
  if(v==null||v==='')return '-';
  if(typeof v==='number'&&v>=0&&v<1){const m=Math.round(v*1440);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
@@ -5296,7 +5319,7 @@ details.ag12-fold{margin-top:12px}details.ag12-fold>summary{font-size:11px;font-
 
   /* ===== Beranda HR: kelompokkan menu (bisa dilipat) ===== */
   const GROUPS=[
-    ['act','Tindakan harian',['Pemeriksaan Absensi','Koreksi XP','Kehadiran Saya','Tinjau Koreksi Absensi','Rekap Bulanan'],true],
+    ['act','Tindakan harian',['Pemeriksaan Absensi','Konfirmasi Absen Luar','Koreksi XP','Kehadiran Saya','Tinjau Koreksi Absensi','Rekap Bulanan'],true],
     ['team','Tim & Kinerja',['Ide & Kontribusi','Catat Kontribusi','Catatan Leader','Laporan Bulanan','Detail Performa','Skor & Penyebab'],false],
     ['comm','Komunikasi',['Pesan Pribadi','Pesan Anonim'],false],
     ['adm','Administrasi',['Kelola Pengguna','Menu Reset Data'],false]
@@ -5320,7 +5343,7 @@ details.ag12-fold{margin-top:12px}details.ag12-fold>summary{font-size:11px;font-
     dot:SV('<circle cx="12" cy="12" r="4"/>')
   };
   const GR={blue:'linear-gradient(135deg,#2563eb,#06b6d4)',violet:'linear-gradient(135deg,#7c3aed,#ec4899)',green:'linear-gradient(135deg,#059669,#34d399)',slate:'linear-gradient(135deg,#475569,#0f172a)',amber:'linear-gradient(135deg,#f59e0b,#f97316)',red:'linear-gradient(135deg,#dc2626,#f97316)',teal:'linear-gradient(135deg,#0d9488,#22d3ee)',indigo:'linear-gradient(135deg,#4f46e5,#818cf8)'};
-  const TILE_ICON={'Pemeriksaan Absensi':['clip','amber'],'Koreksi XP':['sliders','indigo'],'Kehadiran Saya':['cal','teal'],'Tinjau Koreksi Absensi':['note','amber'],'Rekap Bulanan':['bars','green'],
+  const TILE_ICON={'Pemeriksaan Absensi':['clip','amber'],'Konfirmasi Absen Luar':['cal','blue'],'Koreksi XP':['sliders','indigo'],'Kehadiran Saya':['cal','teal'],'Tinjau Koreksi Absensi':['note','amber'],'Rekap Bulanan':['bars','green'],
     'Ide & Kontribusi':['bulb','amber'],'Catat Kontribusi':['bolt','green'],'Catatan Leader':['note','violet'],'Laporan Bulanan':['doc','indigo'],'Detail Performa':['bars','blue'],'Skor & Penyebab':['trend','teal'],
     'Pesan Pribadi':['msg','green'],'Pesan Anonim':['lock','violet'],'Kelola Pengguna':['users','blue'],'Menu Reset Data':['reset','red']};
   const GROUP_META={act:['bolt','blue','Absensi, XP & kehadiran'],team:['users','violet','Ide, catatan & performa tim'],comm:['msg','green','Pesan pribadi & anonim'],adm:['gear','slate','Pengguna & reset data'],other:['dot','slate','Menu tambahan']};
@@ -5349,6 +5372,11 @@ details.ag12-fold{margin-top:12px}details.ag12-fold>summary{font-size:11px;font-
       const b=document.createElement('button'); b.className='home-tile';
       b.innerHTML='<div class="icon">📨</div><div class="title">Pesan Pribadi</div><div class="desc">Kirim pesan ke satu, beberapa, atau semua karyawan.</div>';
       b.onclick=()=>renderHRMessagesPage(); tiles.push(b);
+    }
+    if(!tiles.some(t=>titleOf(t)==='Konfirmasi Absen Luar')){
+      const b=document.createElement('button'); b.className='home-tile';
+      b.innerHTML='<div class="icon">📍</div><div class="title">Konfirmasi Absen Luar</div><div class="desc">Setujui atau tolak absen Tugas Luar dari anggota & Leader.</div>';
+      b.onclick=()=>window.renderOffsiteReviewV17(); tiles.push(b);
     }
     if(!tiles.some(t=>titleOf(t)==='Rekap Bulanan')){
       const b=document.createElement('button'); b.className='home-tile';
@@ -5602,7 +5630,7 @@ details.an13-t>summary{list-style:none;cursor:pointer}details.an13-t>summary::-w
     const grid=c.querySelector('.home-grid'); if(!grid||!c.querySelector('.home-hero,.hr-kpi-card')) return;
     const b=document.createElement('button'); b.className='home-tile'; b.dataset.anonV13='1';
     b.setAttribute('onclick','renderAnonHomeV13()');
-    b.innerHTML='<div class="icon">🕊️</div><div class="title">Curhat dong, Pak</div><div class="desc">Anonim & Rahasia.</div>';
+    b.innerHTML='<div class="icon">🕊️</div><div class="title">Curhat Anonim ke HR</div><div class="desc">Tanpa nama. Hanya HR yang membaca.</div>';
     grid.appendChild(b); updateTileBadge(); getPass(false).catch(()=>{}); // siapkan tiket lebih dulu agar kirim tidak menunggu
     if(Date.now()-lastPoll>60000){lastPoll=Date.now();pollMine();}
   }
@@ -6002,6 +6030,9 @@ renderAbsenTab=async function(){
   await prevRender();
   const tc=document.querySelector('#content .typechoice');
   if(tc)tc.outerHTML='<div class="v17-mode">🟢 Absen Masuk</div>';
+  const cc=$('content');
+  if(cc&&roleOf()!=='hr'&&!$('v17OffCard'))
+    cc.insertAdjacentHTML('beforeend','<div class="card" id="v17OffCard" style="margin-top:12px"><div style="font-size:13px;font-weight:800">Bertugas di luar kantor?</div><div class="v17-note" style="margin:4px 0 8px">Absen masuk bisa di mana saja dan jam berapa saja (tidak mengikuti shift), dengan foto + keterangan. Menunggu konfirmasi HR.</div><button class="btn secondary" id="v17OffBtn" onclick="v17OffOpen(\'masuk\')">📍 Absen Masuk Tugas Luar</button></div>');
 };
 // segarkan status di latar belakang (tanpa memblokir layar)
 async function refreshAtt(){const r=await post('attendanceState',{},20000);if(r&&r.attendanceState)window.v17Att={...r.attendanceState,at:Date.now()};}
@@ -6030,7 +6061,9 @@ function renderCheckout(a){
     <div class="v17-row"><span>Shift</span><b>${esc(SHIFT_LABEL[a.shift]||a.shift||'-')}</b>${a.shiftEnd?`<em class="v17-pill" style="background:#fff;color:#64748b;box-shadow:inset 0 0 0 1px #dce4ee">Selesai ${esc(a.shiftEnd)}</em>`:''}</div>
     <div class="v17-row"><span>Tanggal kerja</span><b>${esc(a.workDate||'')}</b></div>
     <div class="v17-note" id="v17CoNote">${early?'🟡 Belum waktunya pulang. Anda akan diminta memilih alasan dan mengisi keterangan, lalu absen tetap dilakukan di kantor.':'🟢 Waktunya pulang. Tercatat <b style="color:#13804a">Pulang</b> (hijau). Tanpa foto, cukup satu ketukan.'}</div>
-    <button class="btn" id="btnCheckout" onclick="v17Checkout()">🏁 Absen Pulang Sekarang</button>
+    ${a.masukStatus==='Tugas Luar Ditolak'?'<div class="v17-rej">⛔ Absen masuk Tugas Luar Anda ditolak HR. Hubungi HR untuk koreksi.</div>':`<button class="btn" id="btnCheckout" onclick="v17Checkout()">🏁 Absen Pulang Sekarang</button>
+    ${a.offsite?'':'<button class="btn secondary" id="v17OffBtn" style="margin-top:8px" onclick="v17OffOpen(\'pulang\')">📍 Pulang di Luar Kantor</button><div class="v17-note" style="margin:6px 0 0">Sedang bertugas di luar? Absen pulang bisa di mana saja dengan foto + keterangan'+(roleOf()==='hr'?'.':', lalu dikonfirmasi HR.')+'</div>'}`}
+    ${a.offPending?'<div class="v17-wait">⏳ Absen Tugas Luar Anda menunggu konfirmasi HR.</div>':''}
     <div id="v17Early"></div>
     <div id="resultSlot"></div>
   </div>`;
@@ -6056,6 +6089,8 @@ function renderDone(a,rec){
     <div class="v17-row"><span>Tanggal kerja</span><b>${esc(a.workDate||a.today||'')}</b></div>
     <div class="v17-row"><span>Absen masuk</span><b>${esc(a.masukTime||'-')}</b>${pill(a.masukStatus)}</div>
     <div class="v17-row"><span>Absen pulang</span><b>${esc(a.pulangTime||'-')}</b>${pill(a.pulangStatus)}</div>
+    ${a.offPending?'<div class="v17-wait">⏳ Absen Tugas Luar menunggu konfirmasi HR. XP 0; jika ditolak, hari ini dihitung tidak hadir.</div>':''}
+    ${a.offRejected?'<div class="v17-rej">⛔ Ada absen Tugas Luar yang ditolak HR. Hubungi HR jika perlu koreksi.</div>':''}
     ${rec&&rec.id?`<div class="v17-note">No. bukti: <b>${esc(rec.id)}</b></div>`:''}
     <button class="btn secondary" style="margin-top:10px" onclick="switchTab('home',true)">Kembali ke Beranda</button>
   </div>`;
@@ -6069,8 +6104,8 @@ function showEarly(a,msg){
   const wTxt=Math.floor(worked/60)+' jam '+(worked%60)+' menit';
   const opts=[
     ['tugas_luar','🚗 Tugas di luar','Ada tugas/urusan kantor di luar. Tetap tercatat hadir.',true],
-    ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak pribadi, keluarga, atau lainnya.',true],
-    ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih.',worked>=EARLY_MIN]
+    ['izin_mendadak','🙋 Izin mendadak','Keperluan mendadak pribadi, keluarga, atau lainnya. Berapa lama pun sudah bekerja, boleh izin mendadak.',true],
+    ['sakit','🤒 Sakit','Berlaku setelah bekerja 4 jam atau lebih. Hari ini dihitung Sakit.',worked>=EARLY_MIN]
   ];
   box.innerHTML=`<div class="v17-sheet"><div style="font-size:13px;font-weight:800">Pulang sebelum jam selesai</div>
     <div class="v17-note" style="margin:4px 0 6px">Anda sudah bekerja <b>${esc(wTxt)}</b>. Pilih alasan, isi keterangan, lalu absen pulang (tetap di kantor, radius 100 m).</div>
@@ -6197,7 +6232,6 @@ attRenderDayDetailV1013=function(){
 /* Bonus XP pesan & Koreksi XP manual HR dinonaktifkan */
 v5XpOptions=function(){return '<option value="0" selected>0 XP</option>';};
 function stripXpTools(){
-  document.querySelectorAll('#content .home-tile').forEach(t=>{if((t.querySelector('.title')?.textContent||'').trim()==='Koreksi XP')t.remove();});
   const sel=document.getElementById('msgXpBonus');
   if(sel&&!sel.dataset.v17){
     sel.dataset.v17='1';sel.value='0';
@@ -6252,7 +6286,7 @@ const TILES=[
   [/^(Agenda|Agenda Saya|Agenda Perusahaan|Agenda Tim)$/,()=>roleOf()==='hr'?unseen('agd'):pendingAg()],[/^(Absen Kegiatan|Absen Kegiatan Tambahan)/,()=>roleOf()==='hr'?q('act'):unseen('act')],
   [/^(Pengajuan Libur|Persetujuan Libur)$/,()=>roleOf()==='leader'?q('lv'):0],
   [/^Hal Baik Tim$/,()=>q('gd')],[/^Ide Anggota$/,()=>q('idea')],
-  [/^Pemeriksaan Absensi$/,()=>q('rev')],[/^Tinjau Koreksi Absensi$/,()=>q('corr')],
+  [/^Pemeriksaan Absensi$/,()=>q('rev')],[/^Konfirmasi Absen Luar$/,()=>q('off')],[/^Tinjau Koreksi Absensi$/,()=>q('corr')],
   [/^Catatan Leader$/,()=>q('note')],[/^Laporan Bulanan$/,()=>roleOf()==='hr'?q('rpt'):0],
   [/^Ide & Kontribusi$/,()=>q('idea')],[/^(Monitor Pengajuan Libur|Pengajuan Leader)$/,()=>q('lv')],
   [/^Agenda & Broadcast$/,()=>q('act')]
@@ -6434,5 +6468,140 @@ function paintRecap(){
   ${r.noSchedule&&r.noSchedule.length?`<div class="v17-note">⚠️ Jadwal tidak terbaca untuk: ${r.noSchedule.map(esc).join(', ')}. Hari tanpa catatan dihitung “Belum Presensi”.</div>`:''}
   <div class="v17-note">Hari Kerja = Hadir + Belum Presensi + Alpha. Terlambat adalah bagian dari Hadir. “Belum Presensi” = hari kerja yang belum terselesaikan (mis. menunggu pemeriksaan HR).</div>`;
 }
+
+/* ===== D. ABSEN DI LUAR KANTOR (V10.10.0) ===== */
+const st2=document.createElement('style');
+st2.textContent=`
+.v17-ov{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;animation:v17up .18s ease-out both}
+.v17-ovbox{width:100%;max-width:520px;max-height:94vh;overflow:auto;background:#fff;border-radius:18px 18px 0 0;padding:14px 14px 18px;box-sizing:border-box}
+.v17-ovh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}.v17-ovh b{font-size:15px}
+.v17-ovh button{border:0;background:#f1f5f9;border-radius:50%;width:32px;height:32px;font-size:14px;cursor:pointer}
+.v17-cam{position:relative;margin:10px 0;border-radius:12px;overflow:hidden;background:#0f172a;aspect-ratio:4/3}
+.v17-cam video,.v17-cam img{width:100%;height:100%;object-fit:cover;display:block}.v17-cam video{transform:scaleX(-1)}
+.v17-btnrow{display:flex;gap:8px;margin-top:10px}.v17-btnrow .btn{flex:1}
+.v17-wait{margin-top:10px;padding:9px 11px;border-radius:10px;background:#eef4ff;color:#2457d6;font-size:12px;font-weight:700}
+.v17-rej{margin-top:10px;padding:9px 11px;border-radius:10px;background:#fff0f0;color:#c52d35;font-size:12px;font-weight:700}
+.v17-ovbox textarea,.v17-ovbox select{width:100%;padding:9px;border-radius:9px;border:1px solid #dce4ee;font:inherit;font-size:13px;box-sizing:border-box;margin-top:6px}
+.v17-ovbox textarea{min-height:64px}
+.v17-oc{padding:11px;margin:9px 0;border-radius:12px;border:1px solid #dce4ee;background:#fff}
+.v17-oc .t{font-size:13px;font-weight:800}.v17-oc .m{font-size:11px;color:#64748b;margin-top:3px;line-height:1.5}.v17-oc .n{font-size:12px;margin-top:6px;line-height:1.5}
+.v17-oc input{width:100%;padding:8px;border-radius:8px;border:1px solid #dce4ee;margin-top:8px;font:inherit;font-size:12px;box-sizing:border-box}
+.v17-oc .bt{display:flex;gap:8px;margin-top:8px}.v17-oc .bt button{flex:1}
+.v17-oc a{font-size:12px;font-weight:700;margin-right:10px}
+`;
+document.head.appendChild(st2);
+
+let offStream=null,offPhoto=null,offFix=null,offType='masuk',offBusy=false;
+function offStop(){try{(offStream&&offStream.getTracks()||[]).forEach(t=>t.stop());}catch(_){}offStream=null;}
+window.v17OffClose=function(){
+  offStop();offPhoto=null;offBusy=false;const o=$('v17Off');if(o)o.remove();
+  if(offType==='masuk'&&state.currentTab==='absen')renderAbsenTab();
+};
+window.v17OffOpen=async function(type){
+  if($('v17Off'))return;
+  offType=type==='pulang'?'pulang':'masuk';offPhoto=null;offFix=null;offBusy=false;
+  try{stopCamera();}catch(_){}
+  const hr=roleOf()==='hr';
+  const ov=document.createElement('div');ov.id='v17Off';ov.className='v17-ov';
+  ov.innerHTML=`<div class="v17-ovbox" role="dialog" aria-modal="true">
+    <div class="v17-ovh"><b>📍 Absen ${offType==='masuk'?'Masuk':'Pulang'} di Luar Kantor</b><button type="button" onclick="v17OffClose()" aria-label="Tutup">✕</button></div>
+    <div class="v17-note" style="margin:2px 0 6px">${hr
+      ?'Pulang di luar kantor langsung tercatat (XP 0). Isi alasan dan keterangan, lalu ambil foto.'
+      :'Boleh di mana saja dan jam berapa saja (tidak mengikuti shift). Absen ini <b>menunggu konfirmasi HR</b> dan XP 0. Jika ditolak: masuk dihitung Alpha, pulang dihitung tidak absen pulang, dan XP dipotong. Gunakan hanya untuk tugas yang benar-benar di luar kantor.'}</div>
+    ${hr?'<select id="v17OffReason"><option value="">Pilih alasan…</option><option>Meeting di Luar</option><option>Izin pribadi</option><option>Sakit</option></select>':''}
+    <textarea id="v17OffNote" maxlength="200" placeholder="${hr?'Keterangan (min. 5 huruf)':'Keterangan tugas luar (min. 10 huruf), mis. antar dokumen ke klien di Cimahi'}"></textarea>
+    <div class="v17-cam"><video id="v17OffVid" autoplay playsinline muted></video><img id="v17OffImg" alt="Foto presensi" style="display:none"></div>
+    <div class="v17-err" id="v17OffErr"></div>
+    <div class="v17-btnrow"><button type="button" class="btn secondary" id="v17OffSnap">📷 Ambil Foto</button><button type="button" class="btn" id="v17OffSend" disabled>Kirim</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const err=m=>{const e=$('v17OffErr');if(e)e.textContent=m||'';};
+  offFix=getFix();                                   // GPS opsional (tercatat untuk HR bila tersedia), tidak menghalangi
+  try{
+    offStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960}},audio:false});
+    const v=$('v17OffVid');if(v){v.srcObject=offStream;}
+  }catch(e){err('Kamera tidak dapat dibuka. Izinkan akses kamera lalu buka lagi.');}
+  $('v17OffSnap').onclick=()=>{
+    const v=$('v17OffVid'),im=$('v17OffImg');
+    if(offPhoto){offPhoto=null;im.style.display='none';v.style.display='block';$('v17OffSnap').textContent='📷 Ambil Foto';$('v17OffSend').disabled=true;return;}
+    if(!v||!v.videoWidth){err('Kamera belum siap.');return;}
+    const k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight)),cv=document.createElement('canvas');
+    cv.width=Math.round(v.videoWidth*k);cv.height=Math.round(v.videoHeight*k);cv.getContext('2d').drawImage(v,0,0,cv.width,cv.height);
+    try{offPhoto=cv.toDataURL('image/jpeg',0.7);}catch(_){offPhoto=null;}
+    if(!offPhoto){err('Foto gagal diambil. Coba lagi.');return;}
+    im.src=offPhoto;im.style.display='block';v.style.display='none';err('');
+    $('v17OffSnap').textContent='🔄 Ulangi Foto';$('v17OffSend').disabled=false;
+  };
+  $('v17OffSend').onclick=v17OffSend;
+  ['v17OffNote','v17OffReason'].forEach(i=>{const e=$(i);if(e)e.addEventListener('input',()=>err(''));});
+};
+async function v17OffSend(){
+  if(offBusy)return;
+  const err=m=>{const e=$('v17OffErr');if(e)e.textContent=m||'';};
+  const hr=roleOf()==='hr',note=($('v17OffNote')?.value||'').replace(/\s+/g,' ').trim(),reason=$('v17OffReason')?.value||'';
+  if(hr&&!reason){err('Pilih alasan.');return;}
+  if(note.length<(hr?5:10)){err(`Keterangan wajib diisi (minimal ${hr?5:10} huruf).`);return;}
+  if(!offPhoto){err('Ambil foto terlebih dahulu.');return;}
+  offBusy=true;const send=$('v17OffSend');send.disabled=true;send.textContent='⏳ Mengirim…';
+  const fix=await Promise.race([offFix||Promise.resolve(null),sleep(2500).then(()=>null)]);
+  const k='ag_pending_off_'+nikOf()+'_'+offType+'_'+new Date(Date.now()+7*3600e3).toISOString().slice(0,10);
+  let id=sessionStorage.getItem(k);if(!id){id='OFF-'+Date.now()+'-'+nikOf();sessionStorage.setItem(k,id);}
+  const payload={id,type:offType,offsite:true,offsiteNote:note,photoBase64:offPhoto};
+  if(hr)payload.attendanceReason=reason;
+  if(fix&&fix.lat!=null){payload.lat=fix.lat;payload.lng=fix.lng;payload.accuracy=fix.accuracy||0;}
+  let res=null;
+  for(let i=0;i<3;i++){
+    res=await post('addAttendance',payload,30000);
+    if(res&&res.ok)break;
+    if(res&&res.error&&res.error!=='NETWORK')break;
+    if(i<2){send.textContent=`⏳ Jaringan lambat, mencoba lagi (${i+2}/3)…`;await sleep(900*(i+1));}
+  }
+  if(!res||!res.ok){
+    if(res&&res.error==='DOUBLE_ATTENDANCE'){sessionStorage.removeItem(k);offType='pulang';v17OffClose();window.v17Att=null;renderAbsenTab();return;}
+    offBusy=false;send.disabled=false;send.textContent='Kirim';err((res&&(res.message||res.error))||'Gagal mengirim. Coba lagi.');return;
+  }
+  sessionStorage.removeItem(k);
+  const wasMasuk=offType==='masuk';
+  offStop();const o=$('v17Off');if(o)o.remove();offBusy=false;offType='pulang';   // 'pulang': cegah render ganda saat menutup
+  showToast(hr?'✅ Pulang di luar kantor tercatat.':'✅ Absen tugas luar terkirim. Menunggu konfirmasi HR.');
+  window.v17Att=null;
+  try{attHistoryCacheV1015={nik:'',records:null,at:0,promise:null};}catch(_){}
+  await renderAbsenTab();
+  if(wasMasuk)refreshAtt();
+}
+
+/* ===== E. HR: KONFIRMASI ABSEN LUAR KANTOR ===== */
+window.renderOffsiteReviewV17=async function(){
+  if(roleOf()!=='hr'){showToast('⛔ Khusus HR.');return;}
+  const token=window.__hrisNavSeq||0,c=$('content');if(!c)return;
+  const head='<div class="v4-section-head"><strong>Konfirmasi Absen Luar</strong><button class="v4-back" onclick="appBack()">← Beranda</button></div>';
+  c.innerHTML=head+'<div class="v17-note">⏳ Memuat…</div>';
+  const res=await post('getPendingOffsite',{},30000);
+  if(token!==(window.__hrisNavSeq||0)||!$('content'))return;
+  if(!res||!res.ok){c.innerHTML=head+`<div class="card" style="font-size:12px">Gagal memuat: ${esc((res&&(res.message||res.error))||'Kesalahan koneksi')}<div style="margin-top:8px"><button class="btn secondary" onclick="renderOffsiteReviewV17()">Coba lagi</button></div></div>`;return;}
+  const rows=res.records||[];
+  c.innerHTML=head+`<div class="v17-note" style="margin:0 2px 8px">${rows.length} absen luar menunggu keputusan. <b>Setujui</b> = tercatat Tugas Luar (XP 0). <b>Tolak</b> = masuk dihitung Alpha (−20 XP) atau pulang dihitung tidak absen pulang (−5 XP); alasan wajib.</div>`+
+  (rows.length?rows.map(r=>{
+    const map=(r.lat!==''&&r.lat!=null&&r.lng!==''&&r.lng!=null)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat)},${encodeURIComponent(r.lng)}" target="_blank" rel="noopener">🗺️ Peta</a>`:'<span style="font-size:11px;color:#94a3b8;margin-right:10px">Lokasi tidak tercatat</span>';
+    const ph=r.photo_url?`<a href="${esc(r.photo_url)}" target="_blank" rel="noopener">🖼️ Foto</a>`:'';
+    return `<article class="v17-oc"><div class="t">${esc(r.nama||r.nik)} • ${String(r.type)==='pulang'?'PULANG':'MASUK'}</div>
+    <div class="m">${esc(roleLabelV17(r.role))} · ${esc(r.date||'')} · ${esc(r.time||'')}${r.accuracy_m?` · akurasi ±${esc(r.accuracy_m)} m`:''}</div>
+    <div class="n">${esc(String(r.attendance_reason||'').replace(/^Tugas Luar:\s*/,''))}</div>
+    <div style="margin-top:6px">${map}${ph}</div>
+    <input id="offNote_${esc(r.id)}" maxlength="160" placeholder="Catatan HR (wajib jika menolak)">
+    <div class="bt"><button class="btn" onclick="v17OffDecide('${esc(r.id)}','approve')">✅ Setujui</button><button class="btn danger" onclick="v17OffDecide('${esc(r.id)}','reject')">⛔ Tolak</button></div></article>`;
+  }).join(''):'<div class="card" style="text-align:center;font-size:12px">Tidak ada absen luar yang menunggu. 🎉</div>');
+};
+function roleLabelV17(r){r=String(r||'').toLowerCase();return r==='leader'?'Leader':r==='hr'?'HR':'Karyawan';}
+window.v17OffDecide=async function(id,decision){
+  const note=($('offNote_'+id)?.value||'').trim();
+  if(decision==='reject'&&note.length<3){showToast('⚠️ Isi alasan penolakan terlebih dahulu.');$('offNote_'+id)?.focus();return;}
+  if(!confirm(decision==='approve'?'Setujui absen luar ini sebagai Tugas Luar?':'Tolak absen luar ini? Penalti XP akan diterapkan.'))return;
+  const res=await gasCall('reviewOffsiteAttendance',{id,decision,note});
+  if(!res||!res.ok){showToast('❌ '+((res&&(res.message||res.error))||'Keputusan gagal. Coba lagi.'));return;}
+  showToast('✅ '+(res.message||'Keputusan disimpan.'));
+  window.renderOffsiteReviewV17();
+};
+
 })();
 </script>
